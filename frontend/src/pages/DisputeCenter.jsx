@@ -1,167 +1,94 @@
-import { useState, useEffect, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
-import { AuthContext } from "../context/AuthContext";
-import { WalletContext } from "../context/WalletContext";
-import * as api from "../services/api";
-import bs58 from "bs58";
 import {
   AlertTriangle, Clock, CheckCircle, MessageSquare,
-  FileText, Shield, ChevronDown, ChevronUp, Send, Bot, User, Scale, Activity
+  FileText, Shield, ChevronDown, ChevronUp, Send
 } from "lucide-react";
+import { useWallet } from "../hooks/useWallet";
+import { raiseDisputeOnChain } from "../services/solanaWeb3";
+import { getContracts, createDispute, getDisputes } from "../services/api";
+
+const EXISTING_DISPUTES = [
+  {
+    id: "D-001",
+    contract: "SEO Audit & Strategy",
+    freelancer: "0x6g7h...8i9j",
+    amount: 300,
+    status: "Under Review",
+    openedAt: "Mar 11, 2025",
+    issue: "Client claims deliverables don't match scope. Freelancer disputes this assessment.",
+    messages: [
+      { from:"Client",     text:"The audit report only covers 3 pages, not the full website as agreed.",     time:"Mar 11, 14:22" },
+      { from:"Freelancer", text:"I covered all pages listed in the original brief. Please check Appendix B.", time:"Mar 11, 16:05" },
+      { from:"Arbitrator", text:"We are reviewing the original contract terms and submitted evidence.",        time:"Mar 12, 09:10" },
+    ]
+  }
+];
+
+const CONTRACTS = [
+  { id: 1, title:"Logo & Brand Identity",      amount:200 },
+  { id: 2, title:"Smart Contract Development", amount:800 },
+  { id: 4, title:"Mobile App UI Design",       amount:450 },
+  { id: 5, title:"SEO Audit & Strategy",       amount:300 },
+];
 
 export default function DisputeCenter() {
-  const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
-  const { address, wallet, signMessage } = useContext(WalletContext);
-  
-  const [disputes, setDisputes] = useState([]);
-  const [expanded, setExpanded] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+  const { publicKey, connected, signTransaction, signAllTransactions } = useWallet();
+  const [disputes, setDisputes]   = useState([]);
+  const [contracts, setContracts] = useState([]);
+  const [expanded, setExpanded]   = useState(null);
+  const [showForm, setShowForm]   = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  
-  const [form, setForm] = useState({ 
-    projectId: "", 
-    milestoneIndex: 0, 
-    issue: "", 
-    evidence: "" 
-  });
-  
-  const [newMessage, setNewMessage] = useState("");
-  const [arbitrating, setArbitrating] = useState(false);
-  const [overrideData, setOverrideData] = useState({ freelancerSplit: 50, clientSplit: 50, comments: "" });
-  const [showOverride, setShowOverride] = useState(false);
+  const [loading, setLoading]     = useState(false);
+  const [form, setForm] = useState({ contract:"", issue:"", evidence:"", expectedOutcome:"" });
 
-  // Load disputes on mount
+  const set = (k, v) => setForm(prev => ({...prev, [k]: v}));
+
+  // Load real disputes and contracts from backend
   useEffect(() => {
-    fetchDisputes();
-  }, [user]);
+    const token = sessionStorage.getItem("ps_token");
+    getDisputes(token)
+      .then(data => {
+        setDisputes(data);
+        if (data.length > 0) setExpanded(data[0].id);
+      })
+      .catch(() => setDisputes(EXISTING_DISPUTES)); // fallback
 
-  const fetchDisputes = async () => {
-    try {
-      const token = sessionStorage.getItem("ps_user") ? JSON.parse(sessionStorage.getItem("ps_user")).token : null;
-      // Fetch disputes
-      const data = await api.getDisputes(token);
-      setDisputes(data);
-      if (data.length > 0 && !expanded) {
-        setExpanded(data[0].disputeId);
-      }
-    } catch (err) {
-      console.error("Failed to load disputes:", err);
-      // Fallback mock if server offline
-      setDisputes([
-        {
-          disputeId: "D-927361",
-          projectId: "P-101",
-          milestoneIndex: 0,
-          raisedBy: "Client",
-          issue: "Logo deliverables do not match design constraints. The resolution is too low.",
-          evidence: "https://ipfs.io/ipfs/QmXyZ1...",
-          status: "under_review",
-          messages: [
-            { sender: "System", text: "Dispute raised. AI Arbitrator assigned.", timestamp: new Date() },
-            { sender: "Client", text: "I requested vectors but received small PNG files.", timestamp: new Date() },
-          ],
-          auditLog: ["Dispute registered on-chain", "AI Arbitrator initialized"]
-        }
-      ]);
-    }
-  };
+    getContracts({}, token)
+      .then(data => setContracts(data.projects ?? data))
+      .catch(() => setContracts(CONTRACTS)); // fallback
+  }, []);
 
-  const handleCreateDispute = async () => {
-    if (!form.projectId || !form.issue) {
-      alert("Please enter a project ID and describe the issue.");
-      return;
+  const handleSubmit = async () => {
+    if (!form.contract || !form.issue) {
+      alert("Please select a contract and describe your issue."); return;
     }
     setLoading(true);
     try {
-      const token = sessionStorage.getItem("ps_user") ? JSON.parse(sessionStorage.getItem("ps_user")).token : null;
-      const res = await api.raiseDispute(form, token);
+      // 1. Raise dispute on-chain (if wallet connected)
+      if (connected && publicKey) {
+        const wallet = { publicKey, signTransaction, signAllTransactions };
+        await raiseDisputeOnChain(wallet, parseInt(form.contract), form.issue);
+      }
+      // 2. Record in backend
+      const token = sessionStorage.getItem("ps_token");
+      await createDispute({ contractId: form.contract, issue: form.issue, evidence: form.evidence, expectedOutcome: form.expectedOutcome }, token);
       setSubmitted(true);
-      setShowForm(false);
-      fetchDisputes();
     } catch (err) {
-      alert("Failed to raise dispute: " + err.message);
+      console.error(err);
+      alert(err.message || "Failed to raise dispute. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSendMessage = async (disputeId) => {
-    if (!newMessage.trim()) return;
-    try {
-      const token = sessionStorage.getItem("ps_user") ? JSON.parse(sessionStorage.getItem("ps_user")).token : null;
-      
-      let signatureStr = null;
-      let pubKeyStr = null;
-
-      // Ask connected Phantom/Solflare wallet to sign the message
-      if (signMessage && address) {
-        try {
-          const encoder = new TextEncoder();
-          const messageBytes = encoder.encode(newMessage);
-          const signatureBytes = await signMessage(messageBytes);
-          signatureStr = bs58.encode(signatureBytes);
-          pubKeyStr = address;
-        } catch (sigErr) {
-          console.warn("Wallet signing skipped or rejected:", sigErr);
-        }
-      }
-
-      await api.addDisputeMsg(disputeId, newMessage, signatureStr, pubKeyStr, token);
-      setNewMessage("");
-      fetchDisputes();
-    } catch (err) {
-      alert("Failed to send message: " + err.message);
-    }
-  };
-
-  const handleOpenArbitrator = (disputeObj) => {
-    if (user?.role === "client") {
-      navigate("/client-arbitrator", { state: { dispute: disputeObj } });
-    } else {
-      navigate("/freelancer-arbitrator", { state: { dispute: disputeObj } });
-    }
-  };
-
-  const handleTriggerAI = async (disputeId) => {
-    setArbitrating(true);
-    try {
-      const token = sessionStorage.getItem("ps_user") ? JSON.parse(sessionStorage.getItem("ps_user")).token : null;
-      await api.arbitrateDispute(disputeId, token);
-      fetchDisputes();
-    } catch (err) {
-      alert("AI arbitration failed: " + err.message);
-    } finally {
-      setArbitrating(false);
-    }
-  };
-
-  const handleManualOverride = async (disputeId) => {
-    try {
-      const token = sessionStorage.getItem("ps_user") ? JSON.parse(sessionStorage.getItem("ps_user")).token : null;
-      await api.manualOverrideDispute(
-        disputeId, 
-        overrideData.freelancerSplit, 
-        overrideData.clientSplit, 
-        overrideData.comments, 
-        token
-      );
-      setShowOverride(false);
-      fetchDisputes();
-    } catch (err) {
-      alert("Manual override failed: " + err.message);
-    }
-  };
-
   return (
     <div className="app-layout">
-      <Sidebar walletAddress={address} />
+      <Sidebar />
       <div className="main-content">
         <div className="topbar">
           <div className="topbar-left">
-            <span className="topbar-title">Dispute Center & AI Arbitrator</span>
+            <span className="topbar-title">Dispute Center</span>
             <span className="topbar-breadcrumb">Dashboard / Dispute Center</span>
           </div>
           <div className="topbar-right">
@@ -178,273 +105,106 @@ export default function DisputeCenter() {
         <div className="page-container">
           {/* Banner */}
           <div style={{
-            background: "linear-gradient(135deg, rgba(239,68,68,0.06), rgba(99,102,241,0.05))",
-            border: "1px solid rgba(239,68,68,0.15)",
-            borderRadius: 16, padding: "20px 24px",
-            display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 28
+            background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.15)",
+            borderRadius:14, padding:"18px 24px",
+            display:"flex", alignItems:"flex-start", gap:14, marginBottom:28
           }}>
-            <Shield size={24} style={{ color: "var(--accent-red)", flexShrink: 0, marginTop: 2 }} />
+            <Shield size={20} style={{ color:"var(--accent-red)", flexShrink:0, marginTop:1 }} />
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
-                <span>Autonomous AI & Manual Fallback Arbitration</span>
-                <span style={{
-                  fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700,
-                  background: "rgba(99,102,241,0.15)", color: "#a5b4fc"
-                }}>ACTIVE</span>
-              </div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                Disputes freeze the on-chain Solana escrow milestone. Our neural AI Arbitrator automatically scans the 
-                milestone parameters, chat history, and IPFS deliverables to suggest an equitable fund release. 
-                Admins retain manual override capabilities if exceptional edge cases arise.
+              <div style={{ fontSize:14, fontWeight:700, marginBottom:4 }}>On-Chain Dispute Resolution</div>
+              <div style={{ fontSize:13, color:"var(--text-secondary)", lineHeight:1.6 }}>
+                Disputes are handled by a neutral on-chain arbitrator. All evidence is stored on IPFS.
+                Funds remain locked in escrow until a resolution is reached. Cases typically resolve in 3–5 business days.
               </div>
             </div>
           </div>
 
-          {/* Active disputes */}
-          <div style={{ marginBottom: 28 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Your Active Disputes</h2>
+          {/* Existing disputes */}
+          <div style={{ marginBottom:28 }}>
+            <h2 style={{ fontSize:18, fontWeight:700, marginBottom:16 }}>Your Active Disputes</h2>
 
-            {disputes.length === 0 ? (
-              <div className="card" style={{ textAlign: "center", padding: 48 }}>
-                <CheckCircle size={40} style={{ color: "var(--accent-green)", margin: "0 auto 16px", display: "block" }} />
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>No active disputes</div>
-                <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Great! All your contracts are running smoothly.</div>
+            {EXISTING_DISPUTES.length === 0 ? (
+              <div className="card" style={{ textAlign:"center", padding:48 }}>
+                <CheckCircle size={40} style={{ color:"var(--accent-green)", margin:"0 auto 16px", display:"block" }} />
+                <div style={{ fontWeight:600, marginBottom:6 }}>No active disputes</div>
+                <div style={{ fontSize:13, color:"var(--text-muted)" }}>Great! All your contracts are running smoothly.</div>
               </div>
             ) : (
-              disputes.map(d => (
-                <div key={d.disputeId} className="dispute-card" style={{
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 16, padding: 20, marginBottom: 16
-                }}>
+              EXISTING_DISPUTES.map(d => (
+                <div key={d.id} className="dispute-card">
                   <div
                     className="flex-between"
-                    style={{ cursor: "pointer" }}
-                    onClick={() => setExpanded(expanded === d.disputeId ? null : d.disputeId)}
+                    style={{ cursor:"pointer" }}
+                    onClick={() => setExpanded(expanded === d.id ? null : d.id)}
                   >
-                    <div className="flex gap-3" style={{ alignItems: "center" }}>
+                    <div className="flex gap-3" style={{ alignItems:"center" }}>
                       <div style={{
-                        width: 40, height: 40, borderRadius: 12,
-                        background: "rgba(239,68,68,0.1)",
-                        display: "flex", alignItems: "center", justifyContent: "center"
+                        width:36, height:36, borderRadius:10,
+                        background:"rgba(239,68,68,0.12)",
+                        display:"flex", alignItems:"center", justifyContent:"center"
                       }}>
-                        <AlertTriangle size={18} style={{ color: "var(--accent-red)" }} />
+                        <AlertTriangle size={16} style={{ color:"var(--accent-red)" }} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Project #{d.projectId}</div>
-                        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Case {d.disputeId} · Milestone Index {d.milestoneIndex}</div>
+                        <div style={{ fontSize:14, fontWeight:700 }}>{d.contract}</div>
+                        <div style={{ fontSize:12, color:"var(--text-muted)" }}>#{d.id} · Opened {d.openedAt}</div>
                       </div>
                     </div>
-                    <div className="flex gap-3" style={{ alignItems: "center" }}>
-                      <span className={`badge ${d.status.includes("resolved") ? "badge-success" : "badge-disputed"}`}>
-                        {d.status.toUpperCase().replace(/_/g, " ")}
-                      </span>
-                      {expanded === d.disputeId ? <ChevronUp size={18}/> : <ChevronDown size={18}/>}
+                    <div className="flex gap-3" style={{ alignItems:"center" }}>
+                      <span style={{ fontSize:16, fontWeight:700, color:"var(--accent-red)" }}>{d.amount} USDC</span>
+                      <span className="badge badge-disputed">{d.status}</span>
+                      {expanded === d.id ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                     </div>
                   </div>
 
-                  {expanded === d.disputeId && (
-                    <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                      
-                      {/* Description & Evidence */}
-                      <div style={{ marginBottom: 20 }}>
-                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 6 }}>Disputed Issue</h4>
-                        <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>{d.issue}</p>
-                        {d.evidence && (
-                          <div style={{ marginTop: 10, fontSize: 12, color: "var(--accent-purple)", display: "flex", alignItems: "center", gap: 5 }}>
-                            <FileText size={12} />
-                            <strong>Evidence Hash / Link:</strong> <a href={d.evidence} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>{d.evidence}</a>
-                          </div>
-                        )}
+                  {expanded === d.id && (
+                    <div style={{ marginTop:20, paddingTop:20, borderTop:"1px solid rgba(239,68,68,0.15)" }}>
+                      <div style={{ fontSize:13, color:"var(--text-secondary)", lineHeight:1.7, marginBottom:20 }}>
+                        {d.issue}
                       </div>
 
-                      {/* AI resolution panel if resolved or can arbitrate */}
-                      {d.aiResolution && d.aiResolution.suggestion ? (
-                        <div style={{
-                          background: "linear-gradient(135deg, rgba(99,102,241,0.08), rgba(16,185,129,0.05))",
-                          border: "1px solid rgba(99,102,241,0.25)",
-                          borderRadius: 14, padding: 20, marginBottom: 24
-                        }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>
-                              <Bot size={16} style={{ color: "#818cf8" }} /> AI Arbitration Report
-                            </span>
-                            <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 700, background: "rgba(16,185,129,0.15)", color: "#34d399" }}>
-                              CONFIDENCE: {d.aiResolution.confidenceScore}%
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "#a5b4fc", marginBottom: 8 }}>
-                            {d.aiResolution.suggestion}
-                          </div>
-                          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", lineHeight: 1.6 }}>
-                            <strong>Rationale:</strong> {d.aiResolution.rationale}
-                          </p>
-
-                          {/* Split visualizer bar */}
-                          <div style={{ marginBottom: 20 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>
-                              <span>Client: {d.aiResolution.splitPercentageClient}%</span>
-                              <span>Freelancer: {d.aiResolution.splitPercentageFreelancer}%</span>
-                            </div>
-                            <div style={{ height: 8, background: "rgba(255,255,255,0.05)", borderRadius: 4, display: "flex", overflow: "hidden" }}>
-                              <div style={{ width: `${d.aiResolution.splitPercentageClient}%`, background: "var(--accent-blue)" }} />
-                              <div style={{ width: `${d.aiResolution.splitPercentageFreelancer}%`, background: "#34d399" }} />
-                            </div>
-                          </div>
-
-                          {/* Audit scroll logs */}
-                          {d.auditLog && d.auditLog.length > 0 && (
-                            <div>
-                              <h5 style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>
-                                <Activity size={12} /> Audit Trial Log
-                              </h5>
-                              <div style={{
-                                maxHeight: 120, overflowY: "auto", background: "rgba(0,0,0,0.2)",
-                                borderRadius: 8, padding: 12, border: "1px solid rgba(255,255,255,0.05)",
-                                fontSize: 11, color: "var(--text-secondary)", fontFamily: "monospace", display: "flex", flexDirection: "column", gap: 6
-                              }}>
-                                {d.auditLog.map((step, idx) => (
-                                  <div key={idx} style={{ borderLeft: "2px solid #818cf8", paddingLeft: 8 }}>
-                                    {step}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div style={{
-                          background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)",
-                          borderRadius: 14, padding: "20px 24px", marginBottom: 24, textAlign: "center"
-                        }}>
-                          <Bot size={32} style={{ color: "var(--text-muted)", marginBottom: 8 }} />
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>AI Arbitration Available</div>
-                          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px" }}>
-                            Trigger our automated cognitive service to review details and issue a split suggestion.
-                          </p>
-                          <button
-                            id="btn-trigger-ai-arbitration"
-                            className="btn btn-primary btn-sm"
-                            onClick={() => handleOpenArbitrator(d)}
-                          >
-                            ✦ Run AI Arbitrator
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Chat Messages */}
-                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                        <MessageSquare size={14}/> Dispute Conversation Thread
+                      {/* Messages */}
+                      <div style={{ fontWeight:700, fontSize:13, marginBottom:12, display:"flex", alignItems:"center", gap:6 }}>
+                        <MessageSquare size={14}/> Dispute Thread
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-                        {d.messages.map((m, i) => (
+                      <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:20 }}>
+                        {d.messages.map((m,i) => (
                           <div key={i} style={{
-                            background: m.sender === "System" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.15)",
-                            border: `1px solid ${
-                              m.sender === "System" ? "rgba(255,255,255,0.05)"
-                              : m.sender.toLowerCase().includes("client") ? "rgba(59,130,246,0.15)"
+                            background:"rgba(0,0,0,0.2)",
+                            border:`1px solid ${
+                              m.from === "Arbitrator" ? "rgba(99,102,241,0.2)"
+                              : m.from === "Client"   ? "rgba(59,130,246,0.15)"
                               : "rgba(16,185,129,0.15)"
                             }`,
-                            borderRadius: 10, padding: "12px 16px"
+                            borderRadius:10, padding:"12px 16px"
                           }}>
-                            <div className="flex-between" style={{ marginBottom: 6 }}>
+                            <div className="flex-between" style={{ marginBottom:6 }}>
                               <span style={{
-                                fontSize: 12, fontWeight: 700,
-                                color: m.sender === "System" ? "var(--text-muted)"
-                                     : m.sender.toLowerCase().includes("client") ? "var(--accent-blue)"
+                                fontSize:12, fontWeight:700,
+                                color: m.from === "Arbitrator" ? "var(--accent-purple)"
+                                     : m.from === "Client"     ? "var(--accent-blue)"
                                      : "var(--accent-green)"
-                              }}>{m.sender.slice(0, 8)}...</span>
-                              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
-                                {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              }}>{m.from}</span>
+                              <span style={{ fontSize:11, color:"var(--text-muted)" }}>
+                                <Clock size={10} style={{ display:"inline", marginRight:3 }} />{m.time}
                               </span>
                             </div>
-                            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>{m.text}</p>
+                            <p style={{ fontSize:13, color:"var(--text-secondary)", lineHeight:1.6 }}>{m.text}</p>
                           </div>
                         ))}
                       </div>
 
-                      {/* Message Input */}
-                      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+                      {/* Reply */}
+                      <div style={{ display:"flex", gap:10 }}>
                         <input
                           className="form-input"
-                          placeholder="Submit your statement or evidence link..."
-                          value={newMessage}
-                          onChange={e => setNewMessage(e.target.value)}
-                          style={{ flex: 1 }}
+                          placeholder="Add a message to the dispute thread…"
+                          style={{ flex:1 }}
                         />
-                        <button className="btn btn-secondary" onClick={() => handleSendMessage(d.disputeId)}>
+                        <button className="btn btn-secondary">
                           <Send size={14}/> Send
                         </button>
                       </div>
-
-                      {/* Admin Override Action */}
-                      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          style={{ color: "var(--accent-amber)" }}
-                          onClick={() => {
-                            setShowOverride(!showOverride);
-                            setOverrideData({
-                              freelancerSplit: d.aiResolution ? d.aiResolution.splitPercentageFreelancer : 50,
-                              clientSplit: d.aiResolution ? d.aiResolution.splitPercentageClient : 50,
-                              comments: ""
-                            });
-                          }}
-                        >
-                          <Scale size={13} style={{ marginRight: 4 }} /> Admin Fallback Override
-                        </button>
-                      </div>
-
-                      {showOverride && (
-                        <div className="card" style={{ marginTop: 14, border: "1px solid rgba(245,158,11,0.25)" }}>
-                          <h4 style={{ fontSize: 14, fontWeight: 700, color: "var(--accent-amber)", marginBottom: 12 }}>Manual Arbitration Settings</h4>
-                          
-                          <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
-                            <div style={{ flex: 1 }}>
-                              <label className="form-label">Client Refund %</label>
-                              <input
-                                type="number"
-                                className="form-input"
-                                value={overrideData.clientSplit}
-                                onChange={e => setOverrideData({
-                                  ...overrideData,
-                                  clientSplit: parseInt(e.target.value),
-                                  freelancerSplit: 100 - parseInt(e.target.value)
-                                })}
-                              />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <label className="form-label">Freelancer Payout %</label>
-                              <input
-                                type="number"
-                                className="form-input"
-                                value={overrideData.freelancerSplit}
-                                onChange={e => setOverrideData({
-                                  ...overrideData,
-                                  freelancerSplit: parseInt(e.target.value),
-                                  clientSplit: 100 - parseInt(e.target.value)
-                                })}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="form-group">
-                            <label className="form-label">Resolution Summary Comments</label>
-                            <textarea
-                              className="form-textarea"
-                              placeholder="Reason for manual adjustment..."
-                              value={overrideData.comments}
-                              onChange={e => setOverrideData({ ...overrideData, comments: e.target.value })}
-                            />
-                          </div>
-
-                          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                            <button className="btn btn-ghost btn-sm" onClick={() => setShowOverride(false)}>Cancel</button>
-                            <button className="btn btn-warning btn-sm" onClick={() => handleManualOverride(d.disputeId)}>Confirm Override</button>
-                          </div>
-                        </div>
-                      )}
-
                     </div>
                   )}
                 </div>
@@ -453,85 +213,121 @@ export default function DisputeCenter() {
           </div>
 
           {/* Raise Dispute Form */}
-          {showForm && (
+          {(showForm || EXISTING_DISPUTES.length === 0) && !submitted && (
             <div className="card animate-fadeInUp" id="dispute-form">
-              <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
-                <AlertTriangle size={18} style={{ display: "inline", marginRight: 8, color: "var(--accent-red)", verticalAlign: "middle" }} />
+              <h2 style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>
+                <AlertTriangle size={18} style={{ display:"inline", marginRight:8, color:"var(--accent-red)", verticalAlign:"middle" }} />
                 Raise a New Dispute
               </h2>
-              <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 24, lineHeight: 1.6 }}>
-                Freezes escrow release in Solana smart contract. Please submit evidence (IPFS links preferred).
+              <p style={{ fontSize:13, color:"var(--text-secondary)", marginBottom:24, lineHeight:1.6 }}>
+                Raising a dispute will freeze the escrow funds and notify both parties. A neutral arbitrator will review the evidence.
               </p>
 
               <div className="form-group">
-                <label className="form-label">Solana Project ID *</label>
-                <input
-                  className="form-input"
-                  placeholder="e.g. P-101"
-                  value={form.projectId}
-                  onChange={e => setForm({ ...form, projectId: e.target.value })}
-                />
+                <label className="form-label">Affected Contract *</label>
+                <select id="input-dispute-contract" className="form-select"
+                  value={form.contract} onChange={e => set("contract", e.target.value)}>
+                  <option value="">Select a contract</option>
+                  {CONTRACTS.map(c => (
+                    <option key={c.id} value={c.id}>{c.title} (#{c.id})</option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Milestone Index *</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  value={form.milestoneIndex}
-                  onChange={e => setForm({ ...form, milestoneIndex: parseInt(e.target.value) })}
-                />
+                <label className="form-label">Dispute Type</label>
+                <select id="input-dispute-type" className="form-select">
+                  <option>Work not delivered as agreed</option>
+                  <option>Deliverable quality issue</option>
+                  <option>Contract scope disagreement</option>
+                  <option>Payment not released after approval</option>
+                  <option>Communication breakdown</option>
+                  <option>Other</option>
+                </select>
               </div>
 
               <div className="form-group">
                 <label className="form-label">Describe the Issue *</label>
                 <textarea
+                  id="input-dispute-issue"
                   className="form-textarea"
-                  style={{ minHeight: 120 }}
-                  placeholder="Details of disagreement..."
+                  style={{ minHeight:140 }}
+                  placeholder="Explain what happened, what was agreed, and what is disputed…"
                   value={form.issue}
-                  onChange={e => setForm({ ...form, issue: e.target.value })}
+                  onChange={e => set("issue", e.target.value)}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Evidence Link / IPFS Hash</label>
-                <input
-                  className="form-input"
-                  placeholder="e.g. https://ipfs.io/ipfs/Qm..."
+                <label className="form-label">Evidence / IPFS Links</label>
+                <textarea
+                  id="input-dispute-evidence"
+                  className="form-textarea"
+                  style={{ minHeight:80 }}
+                  placeholder="Paste any IPFS hashes, links, or evidence references…"
                   value={form.evidence}
-                  onChange={e => setForm({ ...form, evidence: e.target.value })}
+                  onChange={e => set("evidence", e.target.value)}
                 />
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <div className="form-group">
+                <label className="form-label">Expected Outcome</label>
+                <select id="input-dispute-outcome" className="form-select"
+                  value={form.expectedOutcome} onChange={e => set("expectedOutcome", e.target.value)}>
+                  <option value="">Select outcome</option>
+                  <option>Full refund to client</option>
+                  <option>Partial refund / milestone split</option>
+                  <option>Payment released to freelancer</option>
+                  <option>Contract renegotiation</option>
+                </select>
+              </div>
+
+              <div style={{
+                display:"flex", justifyContent:"flex-end", gap:12, marginTop:8
+              }}>
                 <button className="btn btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>
-                <button className="btn btn-danger" onClick={handleCreateDispute} disabled={loading}>
-                  {loading ? "Submitting..." : "Submit On-chain Dispute"}
+                <button
+                  id="btn-submit-dispute"
+                  className="btn btn-danger"
+                  disabled={loading}
+                  onClick={handleSubmit}
+                >
+                  {loading ? <><span className="spinner"/> Submitting…</> : <><AlertTriangle size={15}/> Submit Dispute</>}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Success message */}
+          {/* Success */}
           {submitted && (
-            <div className="card animate-fadeInUp" style={{ textAlign: "center", padding: 48 }}>
+            <div className="card animate-fadeInUp" style={{ textAlign:"center", padding:48 }}>
               <div style={{
-                width: 64, height: 64, borderRadius: "50%",
-                background: "rgba(245,158,11,0.12)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                margin: "0 auto 20px"
+                width:64, height:64, borderRadius:"50%",
+                background:"rgba(245,158,11,0.12)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                margin:"0 auto 20px"
               }}>
-                <FileText size={30} style={{ color: "var(--accent-amber)" }} />
+                <FileText size={30} style={{ color:"var(--accent-amber)" }} />
               </div>
-              <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--accent-amber)", marginBottom: 8 }}>
-                Dispute Lodged On-chain
+              <h2 style={{ fontSize:22, fontWeight:800, color:"var(--accent-amber)", marginBottom:8 }}>
+                Dispute Submitted
               </h2>
-              <p style={{ color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 480, margin: "0 auto 28px" }}>
-                The milestone escrow is now frozen. Your dispute is locked in our AI arbitration queue.
+              <p style={{ color:"var(--text-secondary)", lineHeight:1.7, maxWidth:480, margin:"0 auto 28px" }}>
+                Your dispute has been registered on-chain. Escrow funds are now frozen.
+                An arbitrator will review the case within 3–5 business days.
               </p>
+              <div style={{
+                display:"inline-block",
+                background:"rgba(0,0,0,0.2)", border:"1px solid var(--border)",
+                borderRadius:12, padding:"12px 20px",
+                fontSize:14, fontWeight:600, color:"var(--accent-amber)",
+                marginBottom:24
+              }}>
+                Case ID: #D-{String(Math.floor(Math.random()*900)+100)}
+              </div>
+              <br/>
               <button className="btn btn-ghost" onClick={() => setSubmitted(false)}>
-                Go to Dispute Thread
+                Return to Dispute Center
               </button>
             </div>
           )}

@@ -1,4 +1,7 @@
 import { createContext, useState, useEffect } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { getNonce, loginWalletWithSignature } from "../services/api";
+import bs58 from "bs58";
 
 export const AuthContext = createContext(null);
 
@@ -18,6 +21,7 @@ const DEMO_USERS = {
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const { publicKey, signMessage } = useWallet();
 
   useEffect(() => {
     const stored = sessionStorage.getItem("ps_user");
@@ -44,19 +48,39 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
-  const loginWithWallet = (address, role = "freelancer") => {
-    const userData = {
-      id: `w_${address.slice(2, 8)}`,
-      name: `${address.slice(0,6)}...${address.slice(-4)}`,
-      email: null,
-      role,
-      walletAddress: address,
-      avatar: null,
-      joinedAt: new Date().toISOString().split("T")[0],
-    };
-    sessionStorage.setItem("ps_user", JSON.stringify(userData));
-    setUser(userData);
-    return userData;
+  const loginWithWallet = async (address, role = "freelancer") => {
+    if (!publicKey || !signMessage) {
+      throw new Error("Solana wallet is not fully connected or doesn't support message signing.");
+    }
+    try {
+      // 1. Fetch challenge nonce from backend
+      const { nonce } = await getNonce(address);
+
+      // 2. Request wallet signature
+      const messageBytes = new TextEncoder().encode(nonce);
+      const signatureBytes = await signMessage(messageBytes);
+      const signature = bs58.encode(signatureBytes);
+
+      // 3. Login with signature
+      const res = await loginWalletWithSignature(address, signature);
+      const userData = {
+        id: res.user.publicKey,
+        name: `${res.user.publicKey.slice(0, 6)}...${res.user.publicKey.slice(-4)}`,
+        email: res.user.email || null,
+        role: res.user.role || role,
+        walletAddress: res.user.publicKey,
+        avatar: res.user.avatarUrl || null,
+        joinedAt: new Date(res.user.createdAt).toISOString().split("T")[0],
+      };
+
+      sessionStorage.setItem("ps_token", res.token);
+      sessionStorage.setItem("ps_user", JSON.stringify(userData));
+      setUser(userData);
+      return userData;
+    } catch (err) {
+      console.error("Wallet login failed:", err);
+      throw err;
+    }
   };
 
   const signup = (name, email, password, role) => {

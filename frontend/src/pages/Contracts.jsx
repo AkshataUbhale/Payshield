@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ContractCard from "../components/ContractCard";
 import { Search, Filter, Plus } from "lucide-react";
+import { getContracts } from "../services/api";
 
 const ALL_CONTRACTS = [
   {
@@ -39,27 +40,47 @@ const ALL_CONTRACTS = [
 
 const FILTERS = ["All", "Active", "Pending", "Submitted", "Disputed", "Completed"];
 
+// Fallback demo data shown when backend is offline
+const DEMO_CONTRACTS = [
+  { id: 1, title:"Logo & Brand Identity", freelancer:"1a2b...c3d4", client:"A1B2...D3E4",
+    amount:200, status:"Active", milestone:"Design Mockup", progress:60, createdAt:"Mar 10, 2025",
+    description:"Professional logo design with full brand guidelines and asset kit." },
+  { id: 2, title:"Smart Contract Development", freelancer:"5e6f...7a8b", client:"A1B2...D3E4",
+    amount:800, status:"Submitted", milestone:"Testing & Deployment", progress:100, createdAt:"Mar 8, 2025",
+    description:"ERC-20 token + staking contract with full test suite." },
+];
+
 export default function Contracts() {
   const navigate = useNavigate();
-  const [filter, setFilter]   = useState("All");
-  const [search, setSearch]   = useState("");
+  const [contracts, setContracts] = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [filter, setFilter]       = useState("All");
+  const [search, setSearch]       = useState("");
 
-  const filtered = ALL_CONTRACTS.filter(c => {
+  useEffect(() => {
+    const token = sessionStorage.getItem("ps_token");
+    getContracts({}, token)
+      .then(data => setContracts(data.projects ?? data))
+      .catch(() => setContracts(DEMO_CONTRACTS))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = contracts.filter(c => {
     const matchFilter = filter === "All" || c.status === filter;
     const matchSearch = !search ||
-      c.title.toLowerCase().includes(search.toLowerCase()) ||
-      c.freelancer.toLowerCase().includes(search.toLowerCase());
+      c.title?.toLowerCase().includes(search.toLowerCase()) ||
+      c.freelancer?.toLowerCase().includes(search.toLowerCase());
     return matchFilter && matchSearch;
   });
 
   const counts = FILTERS.reduce((acc, f) => {
-    acc[f] = f === "All" ? ALL_CONTRACTS.length : ALL_CONTRACTS.filter(c => c.status === f).length;
+    acc[f] = f === "All" ? contracts.length : contracts.filter(c => c.status === f).length;
     return acc;
   }, {});
 
   return (
     <div className="app-layout">
-      <Sidebar walletAddress="0xA1B2C3D4E5F67890ABCDEF1234567890ABCDEF12" />
+      <Sidebar />
       <div className="main-content">
         <div className="topbar">
           <div className="topbar-left">

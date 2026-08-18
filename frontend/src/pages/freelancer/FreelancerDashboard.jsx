@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Wallet, FileText, TrendingUp, Briefcase,
@@ -42,7 +41,6 @@ export default function FreelancerDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { shortAddr, balance } = useWallet();
-  const [wallet] = useState("0xA1B2C3D4E5F67890ABCDEF1234567890ABCDEF12");
 
   const stats = [
     { label: "Wallet Balance",   value: `${balance || "420"} USDC`, icon: Wallet,     color: "purple", change: "+12%",          up: true  },
@@ -53,7 +51,7 @@ export default function FreelancerDashboard() {
 
   return (
     <div className="app-layout">
-      <Sidebar walletAddress={wallet} />
+      <Sidebar />
       <div className="main-content">
         {/* Topbar */}
         <div className="topbar">

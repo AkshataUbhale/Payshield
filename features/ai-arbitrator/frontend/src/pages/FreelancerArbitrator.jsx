@@ -26,14 +26,25 @@ export default function FreelancerArbitrator() {
       setLoading(true);
 
       const response = await axios.post(
-        "http://localhost:5001/api/arbitrator/analyze",
-        formData
+        "http://localhost:3001/api/ai/disputes/arbitrate-precedents",
+        {
+          projectName: formData.projectName,
+          milestoneName: formData.milestoneName,
+          paymentAmount: formData.paymentAmount,
+          userRole: formData.userRole,
+          complaint: formData.clientIssue,
+          workExpected: formData.workCompleted,
+          workDelivered: formData.freelancerExplanation,
+        }
       );
 
       navigate("/arbitration-result", {
         state: {
           formData,
           aiDecision: response.data.aiDecision,
+          citedPrecedents: response.data.citedPrecedents || [],
+          suggestedSplit: response.data.suggestedSplit,
+          confidenceScore: response.data.confidenceScore,
         },
       });
     } catch (error) {

@@ -101,7 +101,7 @@ export default function ActiveContracts() {
                     <div style={{ display: "flex", gap: 8 }}>
                       {c.status === "Active" && (
                         <button className="btn btn-primary btn-sm"
-                          onClick={e => { e.stopPropagation(); navigate(`/submit?contractId=${c.id}`); }}>
+                          onClick={e => { e.stopPropagation(); navigate("/submit"); }}>
                           Submit Work
                         </button>
                       )}

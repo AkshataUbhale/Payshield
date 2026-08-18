@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import { CheckCircle, XCircle, Download, Hash, Eye, Clock, Shield } from "lucide-react";
+import { useWallet } from "../hooks/useWallet";
+import { releaseMilestoneOnChain } from "../services/solanaWeb3";
+import { getSubmissions, approvePayment, rejectPayment } from "../services/api";
 
 const PENDING_APPROVALS = [
   {
@@ -38,26 +41,71 @@ const PENDING_APPROVALS = [
 ];
 
 export default function PaymentApproval() {
-  const [selected, setSelected] = useState(PENDING_APPROVALS[0]);
-  const [loading, setLoading]   = useState(false);
-  const [result, setResult]     = useState(null);
-  const [completed, setCompleted] = useState([]);
+  const { publicKey, connected, signTransaction, signAllTransactions } = useWallet();
+  const [approvals, setApprovals]   = useState([]);
+  const [selected, setSelected]     = useState(null);
+  const [loading, setLoading]       = useState(false);
+  const [fetchError, setFetchError] = useState(null);
+  const [result, setResult]         = useState(null);
+  const [completed, setCompleted]   = useState([]);
 
-  const handleAction = (action) => {
+  // Load real pending submissions from backend
+  useEffect(() => {
+    const token = sessionStorage.getItem("ps_token");
+    getSubmissions(token)
+      .then(data => {
+        setApprovals(data);
+        if (data.length > 0) setSelected(data[0]);
+      })
+      .catch(err => {
+        console.warn("API unavailable, using demo data:", err.message);
+        setFetchError(err.message);
+        // Fallback demo data when backend is offline
+        const demo = [
+          {
+            id: 2, title: "Smart Contract Development", freelancer: "5e6f...7a8b",
+            amount: 800, currency: "USDC", ipfsHash: "QmXz7rNkwPLp8kHBFtMbv3QJ5xRuY9WcNdTq2eMfA6yGz4",
+            submittedAt: "Mar 12, 2025 — 14:30 UTC", milestone: "Testing & Deployment",
+            files: [{ name: "Escrow.sol", size: "4.2 KB", type: "Solidity" }],
+            note: "All contracts deployed to Devnet. Test coverage at 97%."
+          }
+        ];
+        setApprovals(demo);
+        setSelected(demo[0]);
+      });
+  }, []);
+
+  const handleAction = async (action) => {
+    if (!selected) return;
     setLoading(action);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const token = sessionStorage.getItem("ps_token");
+      if (action === "approve") {
+        if (!connected || !publicKey) throw new Error("Connect your wallet to approve payment.");
+        const wallet = { publicKey, signTransaction, signAllTransactions };
+        // Release funds on-chain first
+        await releaseMilestoneOnChain(wallet, selected.id, selected.milestoneIndex ?? 0);
+        // Confirm in backend
+        await approvePayment(selected.id, token);
+      } else {
+        await rejectPayment(selected.id, token);
+      }
       setResult({ action, contract: selected });
       setCompleted(prev => [...prev, selected.id]);
-    }, 2000);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Action failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const pending = PENDING_APPROVALS.filter(c => !completed.includes(c.id));
+  const pending = approvals.filter(c => !completed.includes(c.id));
 
   if (result) {
     return (
       <div className="app-layout">
-        <Sidebar walletAddress="0xA1B2C3D4E5F67890ABCDEF1234567890ABCDEF12" />
+        <Sidebar />
         <div className="main-content">
           <div className="topbar">
             <div className="topbar-left">
@@ -123,7 +171,7 @@ export default function PaymentApproval() {
 
   return (
     <div className="app-layout">
-      <Sidebar walletAddress="0xA1B2C3D4E5F67890ABCDEF1234567890ABCDEF12" />
+      <Sidebar />
       <div className="main-content">
         <div className="topbar">
           <div className="topbar-left">

@@ -41,5 +41,5 @@
     "moduleDetection": "force",
     "skipLibCheck": true,
   },
-  "exclude": ["node_modules", "dist", "contracts", "client", "frontend", "client_old", "solanahub-main", "Payshield 1"]
+  "exclude": ["node_modules", "dist", "contracts", "client", "frontend", "client_old", "solanahub-main", "Payshield 1", "e2e_verification.ts"]
 }

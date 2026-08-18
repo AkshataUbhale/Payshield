@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { Lock, Info, Plus, X, Wallet } from "lucide-react";
+import { useWallet } from "../hooks/useWallet";
+import { createProjectOnChain, initializeEscrowOnChain } from "../services/solanaWeb3";
+import { createContract as apiCreateContract } from "../services/api";
 
 const MILESTONES_DEFAULT = [{ title:"Milestone 1", amount:"", deadline:"" }];
 
@@ -34,23 +37,61 @@ export default function CreateContract() {
   const removeMilestone = (i) =>
     setMilestones(prev => prev.filter((_, idx) => idx !== i));
 
-  const handleCreate = () => {
+  const { publicKey, connected, signTransaction, signAllTransactions } = useWallet();
+
+  const handleCreate = async () => {
     if (!form.freelancer || !form.amount || !form.title) {
       showToast("Please fill in all required fields.", "error"); return;
     }
+    if (!connected || !publicKey) {
+      showToast("Please connect your wallet first.", "error"); return;
+    }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      // Build wallet adapter object Anchor needs
+      const wallet = { publicKey, signTransaction, signAllTransactions };
+      const projectId = Date.now(); // unique numeric ID
+      const milestoneAmounts = milestones.map(m => parseFloat(m.amount) || 0);
+      const deadlineUnix = form.deadline ? Math.floor(new Date(form.deadline).getTime() / 1000) : Math.floor(Date.now() / 1000) + 86400 * 30;
+
+      // 1. Deploy project on-chain
+      const { tx: createTx, projectPda } = await createProjectOnChain(
+        wallet, projectId, form.title,
+        parseFloat(form.amount), milestones.length, deadlineUnix
+      );
+
+      // 2. Lock funds in escrow on-chain
+      await initializeEscrowOnChain(wallet, projectId, milestoneAmounts);
+
+      // 3. Save off-chain record to backend
+      const token = sessionStorage.getItem("ps_token");
+      await apiCreateContract({
+        projectId,
+        title: form.title,
+        description: form.description,
+        budget: parseFloat(form.amount),
+        deadline: form.deadline,
+        freelancerPubkey: form.freelancer,
+        milestones,
+        onChainTx: createTx,
+        projectPda,
+      }, token);
+
       showToast("Escrow contract deployed on-chain! 🎉");
       setTimeout(() => navigate("/contracts"), 1500);
-    }, 2000);
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || "Transaction failed. Check wallet and try again.", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const stepLabels = ["Contract Details", "Milestones", "Review & Deploy"];
 
   return (
     <div className="app-layout">
-      <Sidebar walletAddress="0xA1B2C3D4E5F67890ABCDEF1234567890ABCDEF12" />
+      <Sidebar />
       <div className="main-content">
         <div className="topbar">
           <div className="topbar-left">

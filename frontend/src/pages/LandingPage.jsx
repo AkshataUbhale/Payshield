@@ -1,16 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import SoftAurora from "../components/SoftAurora";
 import { useNavigate } from "react-router-dom";
 import {
-  Shield, Zap, Lock, Globe, ArrowRight, CheckCircle, ChevronRight,
-  Wallet, MessageSquare, Briefcase, Percent
+  Shield, Zap, Lock, Globe, ArrowRight, CheckCircle, ChevronRight
 } from "lucide-react";
-
+import Cubes from "../components/Cubes";
 
 // ── Laser Flow Lines (SVG animated lasers) ──────────────────────────────────
 function LaserFlow() {
   const canvasRef = useRef(null);
-  const animRef = useRef(null);
+  const animRef   = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -18,13 +16,13 @@ function LaserFlow() {
     const ctx = canvas.getContext("2d");
 
     const resize = () => {
-      canvas.width = canvas.offsetWidth;
+      canvas.width  = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
     };
     resize();
     window.addEventListener("resize", resize);
 
-    const COLORS = ["#ffffffff"];
+    const COLORS = ["#6366f1", "#3b82f6", "#06b6d4", "#8b5cf6", "#a78bfa"];
     const beams = Array.from({ length: 18 }, (_, i) => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
@@ -56,7 +54,7 @@ function LaserFlow() {
 
         const grad = ctx.createLinearGradient(x2, y2, b.x, b.y);
         grad.addColorStop(0, "transparent");
-        grad.addColorStop(0.5, b.color + Math.round(b.alpha * 80).toString(16).padStart(2, "0"));
+        grad.addColorStop(0.5, b.color + Math.round(b.alpha * 80).toString(16).padStart(2,"0"));
         grad.addColorStop(1, b.color + "ff");
 
         ctx.beginPath();
@@ -130,7 +128,7 @@ function HowItWorksStepper() {
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       setActive(prev => (prev + 1) % STEPS.length);
-    }, 2000);
+    }, 3000);
     return () => clearInterval(intervalRef.current);
   }, []);
 
@@ -148,7 +146,7 @@ function HowItWorksStepper() {
       <div style={{ display: "flex", flexDirection: "column", gap: 0, minWidth: 280, flexShrink: 0 }}>
         {STEPS.map((s, i) => {
           const isActive = i === active;
-          const isDone = i < active;
+          const isDone   = i < active;
           return (
             <div
               key={s.n}
@@ -160,11 +158,11 @@ function HowItWorksStepper() {
                 <div style={{
                   width: 36, height: 36, borderRadius: "50%",
                   border: isActive ? "2px solid #6366f1"
-                    : isDone ? "2px solid #10b981"
-                      : "2px solid rgba(255,255,255,0.15)",
+                                   : isDone ? "2px solid #10b981"
+                                   : "2px solid rgba(255,255,255,0.15)",
                   background: isActive ? "linear-gradient(135deg,#6366f1,#3b82f6)"
-                    : isDone ? "#10b981"
-                      : "rgba(255,255,255,0.04)",
+                                       : isDone ? "#10b981"
+                                       : "rgba(255,255,255,0.04)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: isDone ? 14 : 13,
                   fontWeight: 700, color: "white",
@@ -267,8 +265,8 @@ function HowItWorksStepper() {
                       width: j === active ? 24 : 8,
                       height: 8, borderRadius: 4,
                       background: j === active ? "var(--accent-purple)"
-                        : j < active ? "var(--accent-green)"
-                          : "rgba(255,255,255,0.12)",
+                                : j < active ? "var(--accent-green)"
+                                : "rgba(255,255,255,0.12)",
                       transition: "all 0.3s ease",
                       cursor: "pointer"
                     }}
@@ -307,6 +305,13 @@ const FEATURES = [
   },
 ];
 
+const STATS = [
+  { value: "$2.4M+", label: "Total Escrowed" },
+  { value: "1,200+", label: "Contracts Settled" },
+  { value: "98.6%",  label: "Dispute-Free Rate" },
+  { value: "140+",   label: "Countries Served" },
+];
+
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -339,8 +344,7 @@ export default function LandingPage() {
         backdropFilter: "blur(16px)",
         borderBottom: "1px solid rgba(255,255,255,0.06)"
       }}>
-        {/* Brand Logo & Name */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => navigate("/")}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
             width: 34, height: 34, borderRadius: 9,
             background: "linear-gradient(135deg,#6366f1,#3b82f6)",
@@ -351,34 +355,11 @@ export default function LandingPage() {
           <span style={{
             fontSize: 18, fontWeight: 800, fontFamily: "'Space Grotesk',sans-serif",
             background: "linear-gradient(135deg,#6366f1,#3b82f6)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-            backgroundClip: "text"
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
           }}>
             PayShield
           </span>
         </div>
-
-        {/* Navigation Links in Menu */}
-        <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
-          <span
-            style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", cursor: "pointer", transition: "color 0.2s" }}
-            onClick={() => navigate("/about")}
-            onMouseEnter={e => e.currentTarget.style.color = "var(--text-primary)"}
-            onMouseLeave={e => e.currentTarget.style.color = "var(--text-secondary)"}
-          >
-            About
-          </span>
-          <span
-            style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", cursor: "pointer", transition: "color 0.2s" }}
-            onClick={() => navigate("/contact")}
-            onMouseEnter={e => e.currentTarget.style.color = "var(--text-primary)"}
-            onMouseLeave={e => e.currentTarget.style.color = "var(--text-secondary)"}
-          >
-            Contact
-          </span>
-        </div>
-
-        {/* Auth & Wallet Actions */}
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <button id="btn-nav-login" className="btn btn-ghost btn-sm" onClick={() => navigate("/login")}>Login</button>
           <button
@@ -392,7 +373,9 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── Hero Section ── */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          HERO — Cubes background
+      ═══════════════════════════════════════════════════════════════════ */}
       <section style={{
         position: "relative",
         minHeight: "100vh",
@@ -400,29 +383,28 @@ export default function LandingPage() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: "120px 40px 80px",
-        boxSizing: "border-box",
-        width: "100%"
+        overflow: "hidden",
+        paddingTop: 68,
       }}>
-
-        <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
-          <SoftAurora
-            speed={0.6}
-            scale={1.5}
-            brightness={1}
-            color1="#f7f7f7"
-            color2="#e100ff"
-            noiseFrequency={2.5}
-            noiseAmplitude={1}
-            bandHeight={0.5}
-            bandSpread={1}
-            octaveDecay={0.1}
-            layerOffset={0}
-            colorSpeed={1}
-            enableMouseInteraction
-            mouseInfluence={0.25}
+        {/* Cubes fill the hero */}
+        <div style={{
+          position: "absolute", inset: 0,
+          opacity: 0.55,
+          zIndex: 0,
+        }}>
+          <Cubes
+            gridSize={10}
+            maxAngle={45}
+            radius={3}
+            borderStyle="1px solid rgba(99,102,241,0.3)"
+            faceColor="#0a0e1a"
+            rippleColor="#6366f1"
+            rippleSpeed={1.5}
+            autoAnimate
+            rippleOnClick
           />
         </div>
+
         {/* Gradient overlay so text is readable */}
         <div style={{
           position: "absolute", inset: 0, zIndex: 1,
@@ -435,8 +417,7 @@ export default function LandingPage() {
           position: "relative", zIndex: 2,
           textAlign: "center",
           padding: "0 40px",
-          maxWidth: 1200,
-          margin: "0 auto"
+          maxWidth: 860,
         }}>
           {/* Badge */}
           <div style={{
@@ -451,33 +432,21 @@ export default function LandingPage() {
               boxShadow: "0 0 8px rgba(16,185,129,0.7)",
               display: "inline-block"
             }} />
-            Powered by Solana Smart Contracts
+            Powered by Ethereum Smart Contracts
           </div>
 
           <h1 style={{
             fontSize: "clamp(36px, 6vw, 72px)",
-            fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 900, letterSpacing: "-2px",
-            lineHeight: 1.06, marginBottom: 24,
-            color: "#ffffff",
-            textShadow: "0 0 40px rgba(255,255,255,0.12)"
+            lineHeight: 1.06, marginBottom: 24
           }}>
             Freelance Payments,{" "}
-            <span style={{
-              background: "linear-gradient(135deg, #FF007A 0%, #7928CA 50%, #00DFD8 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              textShadow: "0 0 35px rgba(0, 223, 216, 0.25)"
-            }}>
-              Secured by Blockchain
-            </span>
+            <span className="gradient-text">Secured by Blockchain</span>
           </h1>
 
           <p style={{
-            fontSize: 19, color: "#a0aec0",
-            maxWidth: 600, lineHeight: 1.7, marginBottom: 40, margin: "0 auto 40px",
-            opacity: 0.95
+            fontSize: 18, color: "var(--text-secondary)",
+            maxWidth: 560, lineHeight: 1.7, marginBottom: 40, margin: "0 auto 40px"
           }}>
             PayShield creates tamper-proof escrow contracts between clients and
             freelancers — ensuring fair pay, on-chain dispute resolution, and
@@ -503,67 +472,34 @@ export default function LandingPage() {
               Login with Email <ArrowRight size={16} />
             </button>
           </div>
+
+          {/* Stats bar */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 32,
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: 16, padding: "22px 48px",
+            maxWidth: 700, margin: "0 auto"
+          }}>
+            {STATS.map(s => (
+              <div key={s.label} style={{ textAlign: "center" }}>
+                <div style={{
+                  fontSize: 22, fontWeight: 800, fontFamily: "'Space Grotesk',sans-serif",
+                  background: "linear-gradient(135deg,#a5b4fc,#60a5fa)",
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
+                }}>
+                  {s.value}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Built for the Future of Work Section */}
-      <div style={{ marginTop: 100, textAlign: "left", width: "100%", maxWidth: 1100, margin: "100px auto 0" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <h2 style={{ fontSize: 32, fontWeight: 800, marginBottom: 12 }}>
-            Built for the <span className="gradient-text">Future of Work</span>
-          </h2>
-          <p style={{ fontSize: 16, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>
-            Everything you need to manage your freelance business, powered by Solana
-          </p>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
-          {[
-            { icon: Lock, title: "Smart Contracts Escrow", desc: "Funds are secured on-chain until milestones are approved. No middleman needed.", color: "#6366f1" },
-            { icon: Zap, title: "Instant Global Payments", desc: "Get paid in USDC within seconds, anywhere in the world, with near-zero fees.", color: "#10b981" },
-            { icon: Percent, title: "0.5% Protocol Fee", desc: "We charge minimal fees compared to 10-20% on traditional platforms.", color: "#f59e0b" },
-            { icon: Shield, title: "Decentralized Identity", desc: "Build your reputation on-chain. Your history and reviews belong to you.", color: "#8b5cf6" },
-            { icon: MessageSquare, title: "Encrypted Messaging", desc: "Communicate securely with end-to-end encryption for all project details.", color: "#ec4899" },
-            { icon: Briefcase, title: "Milestone-based Work", desc: "Break large projects into trackable milestones with separate payouts.", color: "#06b6d4" }
-          ].map((ft, i) => (
-            <div key={i} style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 16, padding: "24px",
-              display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16,
-              transition: "all 0.3s ease",
-              cursor: "default"
-            }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
-                e.currentTarget.style.transform = "translateY(-2px)";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.02)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
-                e.currentTarget.style.transform = "none";
-              }}
-            >
-              <div style={{
-                width: 44, height: 44, borderRadius: 12,
-                background: `rgba(${parseInt(ft.color.slice(1, 3), 16)},${parseInt(ft.color.slice(3, 5), 16)},${parseInt(ft.color.slice(5, 7), 16)},0.15)`,
-                color: ft.color,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: `0 0 16px rgba(${parseInt(ft.color.slice(1, 3), 16)},${parseInt(ft.color.slice(3, 5), 16)},${parseInt(ft.color.slice(5, 7), 16)},0.2)`
-              }}>
-                <ft.icon size={22} />
-              </div>
-              <div>
-                <h4 style={{ fontSize: 17, fontWeight: 700, marginBottom: 8, color: "var(--text-primary)" }}>{ft.title}</h4>
-                <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>{ft.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── WHY PAYSHIELD — with Laser Flow canvas background ── */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          WHY PAYSHIELD — with Laser Flow canvas background
+      ═══════════════════════════════════════════════════════════════════ */}
       <section style={{
         position: "relative",
         padding: "100px 60px",
@@ -585,7 +521,7 @@ export default function LandingPage() {
               Why <span className="gradient-text">PayShield</span>?
             </h2>
             <p style={{ fontSize: 16, color: "var(--text-secondary)", maxWidth: 500, margin: "0 auto" }}>
-              Built on Solana with IPFS storage. Everything is verifiable, decentralized, and trustless.
+              Built on Ethereum with IPFS storage. Everything is verifiable, decentralized, and trustless.
             </p>
           </div>
 
@@ -622,7 +558,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS — Interactive Stepper ── */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          HOW IT WORKS — Interactive Stepper
+      ═══════════════════════════════════════════════════════════════════ */}
       <section style={{
         padding: "100px 60px",
         background: "rgba(255,255,255,0.015)",
@@ -643,7 +581,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          CTA
+      ═══════════════════════════════════════════════════════════════════ */}
       <section style={{ padding: "100px 60px", textAlign: "center" }}>
         <div style={{
           maxWidth: 600, margin: "0 auto",

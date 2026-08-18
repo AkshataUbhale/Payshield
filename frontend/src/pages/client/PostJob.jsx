@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, PlusCircle, X, Calendar } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import NotificationBell from "../../components/common/NotificationBell";
-import * as api from "../../services/api";
 
 const SKILL_SUGGESTIONS = ["React", "Node.js", "Solidity", "Python", "Figma", "TypeScript", "Vue", "GraphQL", "AWS", "DevOps"];
 
@@ -24,38 +23,12 @@ export default function PostJob() {
   };
   const removeSkill = (s) => setSkills(skills.filter(x => x !== s));
 
-  const handlePost = async () => {
+  const handlePost = () => {
     if (!form.title || !form.budget || !skills.length) {
       alert("Please fill title, budget, and at least one skill."); return;
     }
-    
     setLoading(true);
-    try {
-      const token = sessionStorage.getItem("ps_user") ? JSON.parse(sessionStorage.getItem("ps_user")).token : null;
-      
-      // Generate standard random project ID
-      const projectId = `P-${Math.floor(100000 + Math.random() * 900000)}`;
-      
-      // Append skills list to description so the text-matching NLP algorithm picks it up correctly
-      const skillsText = skills.join(", ");
-      const finalDescription = `${form.description}\n\nRequired Skills: ${skillsText}`;
-
-      // POST `/api/projects/create`
-      await api.createContract({
-        title: form.title,
-        description: finalDescription,
-        budget: Number(form.budget),
-        deadline: form.deadline ? new Date(form.deadline) : undefined,
-        projectId
-      }, token);
-
-      setPosted(true);
-    } catch (err) {
-      console.error("Failed to post project to database:", err);
-      alert(err.message || "Escrow validation failed. Please check your wallet connection.");
-    } finally {
-      setLoading(false);
-    }
+    setTimeout(() => { setLoading(false); setPosted(true); }, 1200);
   };
 
   if (posted) return (

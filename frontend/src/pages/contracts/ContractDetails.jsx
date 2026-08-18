@@ -1,18 +1,13 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { useWallet } from '../../hooks/useWallet';
-import { Shield, FileText, CheckCircle, Clock, AlertCircle, ArrowLeft, Calendar, User, DollarSign } from 'lucide-react';
-import Sidebar from '../../components/Sidebar';
-import NotificationBell from '../../components/common/NotificationBell';
+import { Shield, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 export default function ContractDetails() {
   const { id } = useParams();
   const { user } = useAuth();
-  const { shortAddr } = useWallet();
   const navigate = useNavigate();
   const [status, setStatus] = useState('ACTIVE');
-  const [wallet] = useState("0xA1B2C3D4E5F67890ABCDEF1234567890ABCDEF12");
 
   // Mock data
   const contract = {
@@ -31,190 +26,108 @@ export default function ContractDetails() {
   const isClient = user?.role === 'client';
 
   return (
-    <div className="app-layout">
-      <Sidebar walletAddress={wallet} />
-      <div className="main-content">
-        {/* Topbar */}
-        <div className="topbar">
-          <div className="topbar-left" style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)} style={{ padding: "8px" }}>
-              <ArrowLeft size={16} />
-            </button>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <span className="topbar-title">Contract Escrow Details</span>
-              <span className="topbar-breadcrumb">ID: {id} • Decentralized Escrow Node</span>
-            </div>
-          </div>
-          <div className="topbar-right">
-            <NotificationBell />
-            <div className="wallet-badge" onClick={() => navigate("/wallet")}>
-              <div className="wallet-dot" />
-              {shortAddr || `${wallet.slice(0,6)}...${wallet.slice(-4)}`}
-            </div>
-          </div>
-        </div>
-
-        <div className="page-container">
-          <div className="flex-between mb-6">
-            <div>
-              <span className="badge badge-completed" style={{ fontSize: 12, padding: "6px 14px", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                SOLANA ESCROW PROGRAM
-              </span>
-            </div>
-            <span className={`badge ${
-              status === 'ACTIVE' ? 'badge-active' :
-              status === 'COMPLETED' ? 'badge-completed' :
-              'badge-pending'
-            }`} style={{ fontSize: 13, padding: "6px 14px", textTransform: "uppercase" }}>
+    <div className="min-h-screen bg-neutral-900 pt-24 pb-12 px-4 sm:px-6 lg:px-8 text-neutral-100">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-white">Contract Details</h1>
+          <div className="flex items-center gap-4">
+            <span className={`px-4 py-1.5 rounded-full text-sm font-medium ${
+              status === 'ACTIVE' ? 'bg-primary-500/10 text-primary-500 border border-primary-500/20' :
+              status === 'COMPLETED' ? 'bg-green-500/10 text-green-500 border border-green-500/20' :
+              'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+            }`}>
               {status}
             </span>
           </div>
+        </div>
 
-          <div className="grid-3">
-            <div className="col-span-2" style={{ gridColumn: "span 2", display: "flex", flexDirection: "column", gap: 24 }}>
-              {/* Overview Card */}
-              <div className="card">
-                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-                  <FileText size={18} style={{ color: "var(--accent-purple)" }} /> Overview
-                </h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div>
-                    <label style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Project Title</label>
-                    <p style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginTop: 4 }}>{contract.title}</p>
-                  </div>
-                  <div className="divider" style={{ margin: "12px 0" }}></div>
-                  <div className="grid-2">
-                    <div>
-                      <label style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 4 }}>
-                        <User size={12} /> Client
-                      </label>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginTop: 4 }}>{contract.clientName}</p>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 4 }}>
-                        <User size={12} /> Freelancer
-                      </label>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginTop: 4 }}>{contract.freelancerName}</p>
-                    </div>
-                  </div>
-                  <div className="divider" style={{ margin: "12px 0" }}></div>
-                  <div className="grid-2">
-                    <div>
-                      <label style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 4 }}>
-                        <Calendar size={12} /> Start Date
-                      </label>
-                      <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>{contract.createdAt}</p>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 4 }}>
-                        <Calendar size={12} /> Deadline
-                      </label>
-                      <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>{contract.deadline}</p>
-                    </div>
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2 space-y-8">
+            {/* Overview */}
+            <div className="bg-neutral-800 rounded-2xl p-6 border border-neutral-700">
+              <h2 className="text-xl font-bold text-white mb-6">Overview</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-neutral-400">Project Title</label>
+                  <p className="text-lg text-white font-medium">{contract.title}</p>
                 </div>
-              </div>
-
-              {/* Milestones Card */}
-              <div className="card">
-                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-                  <CheckCircle size={18} style={{ color: "var(--accent-green)" }} /> Milestones & Deliverables
-                </h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {[1, 2, 3].map((m) => (
-                    <div key={m} className="milestone-item" style={{
-                      padding: 16,
-                      background: m === 1 ? "rgba(16, 185, 129, 0.04)" : "rgba(255, 255, 255, 0.01)",
-                      border: m === 1 ? "1px solid rgba(16, 185, 129, 0.2)" : "1px solid var(--border)",
-                      borderRadius: 12,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
-                      borderBottom: m === 1 ? "1px solid rgba(16, 185, 129, 0.2)" : "1px solid var(--border)"
-                    }}>
-                      <div className="flex-between">
-                        <h3 style={{ fontSize: 15, fontWeight: 700 }}>Milestone {m}: Delivery #{m}</h3>
-                        <span style={{ fontWeight: 700, color: "var(--accent-purple)" }}>5,000 USDC</span>
-                      </div>
-                      <div className="flex-between" style={{ fontSize: 13 }}>
-                        <span style={{ color: "var(--text-muted)" }}>Due: 2026-03-{m * 10}</span>
-                        {m === 1 ? (
-                          <span style={{ color: "var(--accent-green)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
-                            <CheckCircle size={14} /> Completed
-                          </span>
-                        ) : m === 2 && contract.status === 'ACTIVE' ? (
-                          <span style={{ color: "var(--accent-amber)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
-                            <Clock size={14} /> In Progress
-                          </span>
-                        ) : (
-                          <span style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                            <FileText size={14} /> Pending Lockup
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-neutral-400">Client</label>
+                    <p className="text-white">{contract.clientName}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-neutral-400">Freelancer</label>
+                    <p className="text-white">{contract.freelancerName}</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Sidebar Stats & Escrow Card */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              <div className="card" style={{
-                background: "linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(6, 182, 212, 0.03))",
-                borderColor: "rgba(99, 102, 241, 0.25)",
-                boxShadow: "var(--shadow-glow)"
-              }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 20 }}>
-                  <Shield size={22} style={{ color: "var(--accent-purple)" }} />
-                  <h2 style={{ fontSize: 18, fontWeight: 700 }}>Escrow Node</h2>
-                </div>
+            {/* Milestones */}
+            <div className="bg-neutral-800 rounded-2xl p-6 border border-neutral-700">
+              <h2 className="text-xl font-bold text-white mb-6">Milestones</h2>
+              <div className="space-y-4">
+                {[1, 2, 3].map((m) => (
+                  <div key={m} className={`p-4 rounded-xl border ${m === 1 ? 'bg-primary-900/10 border-primary-500/30' : 'bg-neutral-900 border-neutral-700'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium text-white">Milestone {m}</h3>
+                      <span className="text-primary-500 font-medium">5,000 USDC</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-neutral-400">Due: 2026-03-{m * 10}</span>
+                      {m === 1 ? (
+                        <span className="text-green-500 flex items-center gap-1"><CheckCircle className="w-4 h-4"/> Completed</span>
+                      ) : m === 2 && contract.status === 'ACTIVE' ? (
+                        <span className="text-amber-500 flex items-center gap-1"><Clock className="w-4 h-4"/> In Progress</span>
+                      ) : (
+                        <span className="text-neutral-500 flex items-center gap-1"><FileText className="w-4 h-4"/> Pending</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
-                <div style={{
-                  textAlign: "center",
-                  padding: 24,
-                  background: "rgba(0,0,0,0.3)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 14,
-                  marginBottom: 24
-                }}>
-                  <p style={{ fontSize: 12, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Locked Balance</p>
-                  <p style={{ fontSize: 32, fontWeight: 800, color: "var(--accent-purple)", fontFamily: "'Space Grotesk',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                    <DollarSign size={24} style={{ color: "var(--accent-purple)" }} /> {contract.amount.split(" ")[0]}
-                    <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-secondary)" }}> USDC</span>
-                  </p>
-                </div>
+          <div className="space-y-8">
+            {/* Escrow Status */}
+            <div className="bg-neutral-800 rounded-2xl p-6 border border-neutral-700">
+              <div className="flex gap-3 items-center mb-6">
+                <Shield className="w-6 h-6 text-primary-500" />
+                <h2 className="text-xl font-bold text-white">Escrow</h2>
+              </div>
+              <div className="text-center p-6 bg-neutral-900 rounded-xl mb-6 border border-neutral-700">
+                <p className="text-sm text-neutral-400 mb-1">Locked Funds</p>
+                <p className="text-3xl font-bold text-primary-500">{contract.amount}</p>
+              </div>
 
-                {/* Actions */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {!isClient && status === 'ACTIVE' && (
-                    <button
-                      onClick={() => navigate('/submit')}
-                      className="btn btn-primary"
-                      style={{ width: "100%" }}
-                    >
-                      Submit Deliverable
-                    </button>
-                  )}
-
-                  {isClient && status === 'PENDING_APPROVAL' && (
-                    <button
-                      onClick={() => setStatus('COMPLETED')}
-                      className="btn btn-primary"
-                      style={{ width: "100%" }}
-                    >
-                      Approve & Release Funds
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => navigate('/dispute')}
-                    className="btn btn-danger"
-                    style={{ width: "100%" }}
+              {/* Action Buttons based on Role */}
+              <div className="space-y-3">
+                {!isClient && status === 'ACTIVE' && (
+                  <button 
+                    onClick={() => navigate('/freelancer/submit')}
+                    className="w-full py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-medium transition-colors"
                   >
-                    <AlertCircle size={15} /> File Program Dispute
+                    Submit Deliverable
                   </button>
-                </div>
+                )}
+                
+                {isClient && status === 'PENDING_APPROVAL' && (
+                  <button 
+                    onClick={() => setStatus('COMPLETED')}
+                    className="w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-medium transition-colors"
+                  >
+                    Approve & Release Funds
+                  </button>
+                )}
+
+                <button 
+                  onClick={() => navigate('/dispute')}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-neutral-900 hover:bg-neutral-800 text-red-500 rounded-xl font-medium border border-neutral-700 transition-colors"
+                >
+                  <AlertCircle className="w-4 h-4" /> File Dispute
+                </button>
               </div>
             </div>
           </div>

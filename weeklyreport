@@ -1,0 +1,405 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{array}
+\usepackage{titlesec}
+
+\setstretch{1.15}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.25em}
+
+\titleformat{\section}
+{\fontsize{16}{18}\bfseries}
+{}{0pt}{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Weekly Report Command
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\WeeklyReport}[9]{
+
+\newpage
+
+\begin{center}
+{\fontsize{18}{22}\selectfont\textbf{WEEKLY PROGRESS EVALUATION}}
+\end{center}
+
+\vspace{0.4cm}
+
+\textbf{Project Title:} PayShield
+
+\textbf{Week:} #1
+
+\textbf{Duration:} #2
+
+\vspace{0.3cm}
+
+\textbf{Project Members}
+
+\begin{enumerate}[leftmargin=0.8cm]
+\item ________________________
+\item ________________________
+\item ________________________
+\end{enumerate}
+
+\section*{1. Objectives}
+
+#3
+
+\section*{2. Work Completed}
+
+#4
+
+\section*{3. Individual Contributions}
+
+\begin{tabular}{|p{4cm}|p{10cm}|}
+\hline
+Member 1 & #5 \\ \hline
+Member 2 & #6 \\ \hline
+Member 3 & #7 \\ \hline
+\end{tabular}
+
+\vspace{0.4cm}
+
+\section*{4. Skills and Technologies Learned}
+
+#8
+
+\section*{5. Challenges Faced}
+
+#9
+
+\vspace{0.4cm}
+
+\section*{6. Plan for Next Week}
+
+\vspace{1.2cm}
+
+\textbf{Date:}\hspace{2cm}\rule{5cm}{0.4pt}
+
+\vspace{1.5cm}
+
+\begin{minipage}{0.55\textwidth}
+
+\textbf{Project Members' Signature}
+
+\vspace{0.5cm}
+
+1.\rule{4cm}{0.4pt}
+
+\vspace{0.8cm}
+
+2.\rule{4cm}{0.4pt}
+
+\vspace{0.8cm}
+
+3.\rule{4cm}{0.4pt}
+
+\end{minipage}
+\hfill
+\begin{minipage}{0.3\textwidth}
+
+\vspace{2.3cm}
+
+\begin{center}
+\rule{5cm}{0.4pt}
+
+Guide
+\end{center}
+
+\end{minipage}
+
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% WEEK 1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\WeeklyReport
+{Week 1}
+{Project Initialization \& Architecture}
+{
+\begin{itemize}
+\item Requirement gathering for PayShield components
+\item Literature survey on decentralized escrows and AI reputation
+\item Problem statement finalization
+\item Technology stack selection (Solana, Next.js, AI modules)
+\end{itemize}
+}
+{
+\begin{itemize}
+\item Finalized PayShield architecture incorporating blockchain, AI, and web components
+\item Selected Solana (Anchor), React/Next.js, and PostgreSQL
+\item Designed high-level workflow for escrow and dispute resolution
+\item Created GitHub repository
+\end{itemize}
+}
+{Requirement Analysis for Solana Escrow}
+{Technology Research on AI Reputation Models}
+{Architecture Design \& Database Planning}
+{
+\begin{itemize}
+\item Solana Blockchain Fundamentals
+\item AI/ML Use-cases in Web3
+\item Project Planning \& Git
+\end{itemize}
+}
+{
+Understanding the interplay between on-chain data and off-chain AI inference.
+}
+{
+\begin{itemize}
+\item Finalize UI Wireframes
+\item Database Design for off-chain metadata
+\end{itemize}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% WEEK 2
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\WeeklyReport
+{Week 2}
+{UI/UX \& Database Design}
+{
+\begin{itemize}
+\item UI Design for Buyers, Sellers, and Arbitrators
+\item Database Schema formulation
+\item Workflow Planning for Escrow Lifecycle
+\end{itemize}
+}
+{
+\begin{itemize}
+\item Designed PayShield dashboard UI
+\item Created ER Diagram for off-chain user data and reputation scores
+\item Planned backend API structure for AI module integration
+\item Designed the end-to-end escrow flow
+\end{itemize}
+}
+{Dashboard UI Wireframing (Figma)}
+{PostgreSQL Database Schema Design}
+{AI-Blockchain Workflow Design}
+{
+\begin{itemize}
+\item Figma
+\item PostgreSQL
+\item REST API Design
+\end{itemize}
+}
+{
+Designing a seamless UI/UX that abstracts blockchain complexity from average users.
+}
+{
+\begin{itemize}
+\item Begin Smart Contract Development for the Solana Escrow
+\end{itemize}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% WEEK 3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\WeeklyReport
+{Week 3}
+{Smart Contract Development}
+{
+\begin{itemize}
+\item Develop Solana escrow contract
+\item Integrate Web3 Wallet connections
+\end{itemize}
+}
+{
+\begin{itemize}
+\item Created Anchor project for PayShield
+\item Implemented core escrow smart contract (deposit, lock, release, refund)
+\item Integrated Phantom Wallet connection on the frontend
+\item Tested smart contract locally on Solana test validator
+\end{itemize}
+}
+{Escrow Smart Contract Logic (Rust/Anchor)}
+{Phantom Wallet Integration}
+{Anchor Tests \& On-chain Verification}
+{
+\begin{itemize}
+\item Rust
+\item Anchor Framework
+\item Solana CLI
+\end{itemize}
+}
+{
+Managing PDAs (Program Derived Addresses) securely in the escrow contract.
+}
+{
+\begin{itemize}
+\item Develop Backend APIs and connect the database
+\end{itemize}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% WEEK 4
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\WeeklyReport
+{Week 4}
+{Backend API Development}
+{
+\begin{itemize}
+\item Develop REST APIs for user management
+\item Web3 Authentication
+\item Database Integration (Prisma)
+\end{itemize}
+}
+{
+\begin{itemize}
+\item Implemented Express APIs for transaction logging
+\item Added Web3 authentication (wallet signature verification)
+\item Connected the PostgreSQL database to track escrow states off-chain
+\end{itemize}
+}
+{Web3 Wallet Authentication Logic}
+{Database Integration (Prisma/PostgreSQL)}
+{Transaction \& User API Development}
+{
+\begin{itemize}
+\item Node.js
+\item Express \& Prisma ORM
+\item Wallet Signature Verification
+\end{itemize}
+}
+{
+Synchronizing off-chain database state with on-chain escrow events securely.
+}
+{
+\begin{itemize}
+\item Frontend Integration (Dashboard and APIs)
+\end{itemize}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% WEEK 5
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\WeeklyReport
+{Week 5}
+{Frontend Integration}
+{
+\begin{itemize}
+\item Dashboard Development
+\item Wallet Connection state management
+\item API Integration
+\end{itemize}
+}
+{
+\begin{itemize}
+\item Developed the Next.js user dashboard with Tailwind CSS
+\item Linked the Phantom Wallet UI with backend session management
+\item Connected frontend components to the backend APIs and on-chain escrow functions
+\end{itemize}
+}
+{Next.js Dashboard Frontend Development}
+{Wallet UI and Global State Management}
+{Frontend-Backend API Integration}
+{
+\begin{itemize}
+\item React \& Next.js
+\item Tailwind CSS
+\item Web3.js / Solana Web3
+\end{itemize}
+}
+{
+Handling asynchronous blockchain transaction states and providing real-time UI feedback.
+}
+{
+\begin{itemize}
+\item AI Module Development (Reputation \& Dispute)
+\end{itemize}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% WEEK 6
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\WeeklyReport
+{Week 6}
+{AI Integration (Reputation & Dispute)}
+{
+\begin{itemize}
+\item Develop Reputation Model
+\item Build Recommendation Engine
+\item Construct Dispute Workflow
+\end{itemize}
+}
+{
+\begin{itemize}
+\item Designed ML-based reputation scoring algorithm utilizing transaction history
+\item Planned the AI dispute resolution mechanism (NLP summarization of dispute chats)
+\item Created recommendation workflow for trusted sellers
+\end{itemize}
+}
+{ML Reputation Scoring Model}
+{Recommendation Engine Logic}
+{AI Dispute Resolution NLP Module}
+{
+\begin{itemize}
+\item Machine Learning Basics
+\item NLP for Dispute Summarization
+\item AI-Web3 System Architecture
+\end{itemize}
+}
+{
+Defining fair and unbiased parameters for reputation degradation and dispute penalties.
+}
+{
+\begin{itemize}
+\item System Testing, Optimization, and Documentation
+\end{itemize}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% WEEK 7
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\WeeklyReport
+{Week 7}
+{Testing, Optimization \& Documentation}
+{
+\begin{itemize}
+\item System Integration Testing
+\item End-to-End Escrow Testing
+\item Technical Documentation
+\end{itemize}
+}
+{
+\begin{itemize}
+\item Integrated frontend, backend, AI modules, and Solana blockchain into a cohesive application
+\item Tested end-to-end escrow workflow including dispute triggering and AI arbitration
+\item Prepared final technical documentation and identified future enhancements
+\end{itemize}
+}
+{End-to-End System Testing}
+{Technical Documentation \& Report Writing}
+{Performance Optimization \& Bug Fixing}
+{
+\begin{itemize}
+\item System Integration
+\item Debugging Complex Systems
+\item Technical Writing
+\end{itemize}
+}
+{
+Coordinating testing across multiple diverse tech stacks (Rust, Python AI, Node.js).
+}
+{
+\begin{itemize}
+\item Project deployment and presentation preparation
+\item Monitor initial system metrics
+\end{itemize}
+}
+
+\end{document}

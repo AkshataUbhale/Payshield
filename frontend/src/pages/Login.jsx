@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, Shield, Chrome, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useWallet } from "../hooks/useWallet";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, loginWithWallet } = useAuth();
-  const { connect } = useWallet();
+  const { connected, publicKey } = useWallet();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -30,25 +31,25 @@ export default function Login() {
     }, 1000);
   };
 
-  const handleMetaMask = async () => {
-    setLoading(true);
-    try {
-      let address;
-      if (window.ethereum) {
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        address = accounts[0];
-      } else {
-        // Demo fallback
-        address = "0xA1B2C3D4E5F67890ABCDEF1234567890ABCDEF12";
+  // Automatically trigger challenge signature verification when wallet connects
+  useEffect(() => {
+    const autoLogin = async () => {
+      if (connected && publicKey) {
+        setLoading(true);
+        try {
+          const address = publicKey.toBase58();
+          const user = await loginWithWallet(address);
+          redirectForRole(user);
+        } catch (err) {
+          console.error(err);
+          alert(err.message || "Cryptographic signature validation failed. Please try again.");
+        } finally {
+          setLoading(false);
+        }
       }
-      await connect();
-      const user = loginWithWallet(address);
-      setLoading(false);
-      navigate("/role");
-    } catch {
-      setLoading(false);
-    }
-  };
+    };
+    autoLogin();
+  }, [connected, publicKey]);
 
   const handleGoogle = () => {
     setLoading(true);
@@ -156,17 +157,14 @@ export default function Login() {
           </div>
 
           {/* Social */}
-          <div style={{ display:"flex",gap:10 }}>
-            <button id="btn-google-login" className="btn btn-ghost" style={{ flex:1,height:44 }}
+          <div style={{ display:"flex",gap:10,flexDirection:"column" }}>
+            <button id="btn-google-login" className="btn btn-ghost" style={{ width:"100%",height:44 }}
               onClick={handleGoogle} disabled={loading}>
-              <Chrome size={16}/> Google
+              <Chrome size={16}/> Continue with Google
             </button>
-            <button id="btn-metamask-login" className="btn btn-secondary" style={{ flex:1,height:44 }}
-              onClick={handleMetaMask} disabled={loading}>
-              <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg"
-                alt="MetaMask" style={{ width:18,height:18 }} />
-              MetaMask
-            </button>
+            <div style={{ width:"100%" }} className="solana-auth-button-container">
+              <WalletMultiButton style={{ width:"100%", height:44, justifyContent:"center", borderRadius:10, fontFamily:"Inter,sans-serif", fontSize:14, fontWeight:600 }} />
+            </div>
           </div>
         </div>
 

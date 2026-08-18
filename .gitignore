@@ -18,6 +18,16 @@ pnpm-lock.yaml
 .env.*.local
 .env.production.local
 
+# Secrets & Keys (Credentials)
+*secret*
+*credential*
+Piniata secrets .doc
+keys/
+*.pem
+*.key
+*.pub
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Logs
 # ─────────────────────────────────────────────────────────────────────────

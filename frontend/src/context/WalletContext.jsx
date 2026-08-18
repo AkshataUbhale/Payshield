@@ -1,108 +1,82 @@
-import { createContext, useState, useEffect, useCallback, useMemo } from "react";
-import { ConnectionProvider, WalletProvider as SolanaWalletProvider, useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
+/* WalletContext.jsx – real Solana integration (Devnet) */
+import { createContext, useContext, useMemo } from "react";
+import {
+  ConnectionProvider,
+  WalletProvider as SolanaWalletProvider,
+  useWallet as useSolanaWallet,
+} from "@solana/wallet-adapter-react";
+import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
+import { clusterApiUrl } from "@solana/web3.js";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
-import { WalletModalProvider, useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-
-// CRITICAL: Import wallet adapter styles
 import "@solana/wallet-adapter-react-ui/styles.css";
 
-export const WalletContext = createContext(null);
+// ── Context ──────────────────────────────────────────────────────────────────
+export const WalletContext = createContext({
+  publicKey: null,
+  connected: false,
+  signTransaction: null,
+  signAllTransactions: null,
+  sendTransaction: null,
+  shortAddress: null,
+  shortAddr: null,   // alias so old code keeps working
+});
 
-function WalletInnerProvider({ children }) {
-  const { publicKey, wallet, disconnect: solanaDisconnect, connected, connecting, signMessage } = useSolanaWallet();
-  const { setVisible } = useWalletModal();
-  const [balance, setBalance] = useState("0.00");
-  
-  const endpoint = "https://api.devnet.solana.com";
-  
-  // Fetch balance when public key changes
-  useEffect(() => {
-    if (!publicKey) {
-      setBalance("0.00");
-      return;
-    }
-    
-    const fetchBalance = async () => {
-      try {
-        const connection = new Connection(endpoint, "confirmed");
-        const bal = await connection.getBalance(publicKey);
-        setBalance((bal / LAMPORTS_PER_SOL).toFixed(2));
-      } catch (err) {
-        console.error("Error fetching Solana balance:", err);
-        setBalance("0.00");
-      }
-    };
-    
-    fetchBalance();
-    // Fetch balance periodically
-    const interval = setInterval(fetchBalance, 10000);
-    return () => clearInterval(interval);
-  }, [publicKey]);
+// ── Inner bridge: reads Solana adapter state → our context ───────────────────
+function WalletBridge({ children }) {
+  const {
+    publicKey,
+    connected,
+    signTransaction,
+    signAllTransactions,
+    sendTransaction,
+  } = useSolanaWallet();
 
-  const connect = useCallback(() => {
-    try {
-      setVisible(true);
-    } catch (err) {
-      console.error("Wallet modal trigger failed:", err);
-    }
-  }, [setVisible]);
-
-  const disconnect = useCallback(async () => {
-    try {
-      await solanaDisconnect();
-      sessionStorage.removeItem("ps_user");
-    } catch (err) {
-      console.error("Wallet disconnect failed:", err);
-    }
-  }, [solanaDisconnect]);
-
-  const address = useMemo(() => publicKey ? publicKey.toBase58() : null, [publicKey]);
-  const shortAddr = useMemo(() => {
-    if (!address) return null;
-    return `${address.slice(0, 4)}...${address.slice(-4)}`;
-  }, [address]);
+  const shortAddress = publicKey
+    ? `${publicKey.toBase58().slice(0, 4)}…${publicKey.toBase58().slice(-4)}`
+    : null;
 
   return (
-    <WalletContext.Provider value={{
-      address,
-      balance,
-      network: "Solana Devnet",
-      connected,
-      connecting,
-      shortAddr,
-      connect,
-      disconnect,
-      wallet,
-      signMessage
-    }}>
+    <WalletContext.Provider
+      value={{
+        publicKey,
+        connected,
+        signTransaction,
+        signAllTransactions,
+        sendTransaction,
+        shortAddress,
+        shortAddr: shortAddress, // alias for backward compat
+      }}
+    >
       {children}
     </WalletContext.Provider>
   );
 }
 
-export function WalletProvider({ children }) {
+// ── Public provider – wrap the whole app with this ───────────────────────────
+export function CustomWalletProvider({ children }) {
   const network = WalletAdapterNetwork.Devnet;
-  const endpoint = "https://api.devnet.solana.com";
+  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
 
   const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-    ],
+    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
     []
   );
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <SolanaWalletProvider wallets={wallets} autoConnect={true}>
+      <SolanaWalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <WalletInnerProvider>
+          <WalletBridge>
             {children}
-          </WalletInnerProvider>
+          </WalletBridge>
         </WalletModalProvider>
       </SolanaWalletProvider>
     </ConnectionProvider>
   );
+}
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
+export function useWalletCtx() {
+  return useContext(WalletContext); // never throws – returns safe defaults
 }

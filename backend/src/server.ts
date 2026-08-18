@@ -10,6 +10,8 @@ import socialRoutes from "./routes/socialRoutes.js";
 import reputationRoutes from "./routes/reputationRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import draftContractRoutes from "./routes/draftContractRoutes.js";
+import submissionRoutes from "./routes/submissionRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 import { startSolanaWatcher } from "./services/solanaWatcher.js";
 
 dotenv.config();
@@ -33,6 +35,8 @@ app.use("/api/social", socialRoutes);
 app.use("/api/reputation", reputationRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/draft-contracts", draftContractRoutes);
+app.use("/api/submissions", submissionRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Services
 // startSolanaWatcher();

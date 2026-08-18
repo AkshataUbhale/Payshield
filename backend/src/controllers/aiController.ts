@@ -453,3 +453,153 @@ export const overrideArbitration = async (
     res.status(500).json({ message: "Server Error" });
   }
 };
+
+// ── FEATURE 1: AI CONTRACT & CLAUSE ASSISTANT (RAG) ───────────────────────────
+
+import { RAGService } from "../services/rag/ragService.js";
+import { SolanaRPCTools } from "../services/mcp/solanaTools.js";
+import { GitHubProofOfWorkTools } from "../services/mcp/githubTools.js";
+import { AgentService } from "../services/agentService.js";
+
+// @desc    Explain a contract clause using RAG platform guidelines
+// @route   POST /api/ai/contract/explain-clause
+// @access  Public / Protected
+export const explainContractClause = async (req: any, res: Response): Promise<void> => {
+  try {
+    const { clauseText, context } = req.body;
+    if (!clauseText) {
+      res.status(400).json({ message: "clauseText is required" });
+      return;
+    }
+
+    const result = await RAGService.explainClause(clauseText, context);
+    res.status(200).json(result);
+  } catch (error: any) {
+    console.error("Explain clause error:", error);
+    res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
+// @desc    Audit a full draft contract against platform escrow standards
+// @route   POST /api/ai/contract/audit-draft
+// @access  Public / Protected
+export const auditDraftContract = async (req: any, res: Response): Promise<void> => {
+  try {
+    const { title, description, budget, milestones } = req.body;
+    const combinedTerms = `${title || ""} ${description || ""} ${(milestones || []).map((m: any) => `${m.title} ${m.description || ""}`).join(" ")}`;
+
+    const rules = RAGService.searchPlatformRules(combinedTerms, 3);
+    const result = await RAGService.explainClause(combinedTerms, `Draft project for ${budget || "unspecified"} SOL`);
+
+    res.status(200).json({
+      auditStatus: "PASSED_WITH_RECOMMENDATIONS",
+      riskLevel: result.riskLevel,
+      explanation: result.explanation,
+      matchedRules: rules.map((r) => r.rule),
+    });
+  } catch (error: any) {
+    console.error("Audit draft contract error:", error);
+    res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
+// ── FEATURE 2: AI DISPUTE ARBITRATOR PRECEDENTS (RAG) ─────────────────────────
+
+// @desc    Arbitrate dispute with historical Web3 precedents
+// @route   POST /api/ai/disputes/arbitrate-precedents
+// @access  Public / Protected
+export const arbitrateWithPrecedents = async (req: any, res: Response): Promise<void> => {
+  try {
+    const {
+      projectName,
+      milestoneName,
+      paymentAmount,
+      userRole,
+      complaint,
+      workExpected,
+      workDelivered,
+      evidenceNotes,
+    } = req.body;
+
+    const result = await RAGService.arbitrateWithPrecedents({
+      projectName: projectName || "Unnamed Project",
+      milestoneName: milestoneName || "Milestone 1",
+      paymentAmount: paymentAmount || 0,
+      userRole: userRole || "client",
+      complaint: complaint || "",
+      workExpected: workExpected || "",
+      workDelivered: workDelivered || "",
+      evidenceNotes,
+    });
+
+    res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (error: any) {
+    console.error("Arbitrate with precedents error:", error);
+    res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
+// ── FEATURE 3 & 4: CONVERSATIONAL COPILOT (SOLANA RPC & GITHUB MCP) ───────────
+
+// @desc    Chat with PayShield AI Copilot (orchestrates Solana RPC & GitHub tools)
+// @route   POST /api/ai/agent/chat
+// @access  Public / Protected
+export const chatWithAgent = async (req: any, res: Response): Promise<void> => {
+  try {
+    const { message, history } = req.body;
+    if (!message) {
+      res.status(400).json({ message: "message is required" });
+      return;
+    }
+
+    const response = await AgentService.processUserMessage(message, history || []);
+    res.status(200).json(response);
+  } catch (error: any) {
+    console.error("Agent chat error:", error);
+    res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
+// @desc    Direct Solana RPC Transaction Status Tool
+// @route   GET /api/ai/tools/solana/tx/:signature
+export const getSolanaTxStatus = async (req: any, res: Response): Promise<void> => {
+  try {
+    const { signature } = req.params;
+    const status = await SolanaRPCTools.getTransactionStatus(signature);
+    res.status(200).json(status);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Direct Solana RPC Balance Tool
+// @route   GET /api/ai/tools/solana/balance/:address
+export const getSolanaBalance = async (req: any, res: Response): Promise<void> => {
+  try {
+    const { address } = req.params;
+    const balance = await SolanaRPCTools.getWalletBalance(address);
+    res.status(200).json(balance);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Direct GitHub Proof of Work Audit Tool
+// @route   POST /api/ai/tools/github/audit
+export const auditGithubProofOfWork = async (req: any, res: Response): Promise<void> => {
+  try {
+    const { repo, milestoneCriteria, branch } = req.body;
+    if (!repo) {
+      res.status(400).json({ message: "repo is required" });
+      return;
+    }
+    const audit = await GitHubProofOfWorkTools.auditProofOfWork(repo, milestoneCriteria || "", branch);
+    res.status(200).json(audit);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

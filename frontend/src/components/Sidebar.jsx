@@ -2,8 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, FileText, Briefcase, Users, Wallet,
   Bell, Settings, LogOut, Shield, ChevronRight,
-  PlusCircle, Search, Send, Star, History, AlertTriangle, User,
-  MessageSquare, Bot
+  PlusCircle, Search, Send, Star, History, AlertTriangle, User
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useWallet } from "../hooks/useWallet";
@@ -12,29 +11,26 @@ const FREELANCER_NAV = [
   {
     section: "MAIN",
     items: [
-      { label: "Dashboard",    icon: LayoutDashboard, to: "/freelancer/dashboard" },
-      { label: "Browse Jobs",  icon: Search,          to: "/freelancer/jobs" },
-      { label: "AI Picks",     icon: Bot,             to: "/freelancer/ai-recommendations" },
-      { label: "My Contracts", icon: FileText,        to: "/freelancer/contracts" },
-      { label: "Negotiations", icon: MessageSquare,   to: "/negotiations" },
-      { label: "Submit Work",  icon: Send,            to: "/submit" },
+      { label: "Dashboard", icon: LayoutDashboard, to: "/freelancer/dashboard" },
+      { label: "Browse Jobs", icon: Search, to: "/freelancer/jobs" },
+      { label: "My Contracts", icon: FileText, to: "/freelancer/contracts" },
+      { label: "Submit Work", icon: Send, to: "/submit" },
     ]
   },
   {
     section: "EARNINGS",
     items: [
-      { label: "Payments",     icon: Wallet,          to: "/freelancer/payments" },
-      { label: "Wallet",       icon: Wallet,          to: "/wallet" },
-      { label: "Transactions", icon: History,         to: "/transactions" },
+      { label: "Payments", icon: Wallet, to: "/freelancer/payments" },
+      { label: "Wallet", icon: Wallet, to: "/wallet" },
+      { label: "Transactions", icon: History, to: "/transactions" },
     ]
   },
   {
     section: "PROFILE",
     items: [
-      { label: "My Profile",   icon: User,            to: "/freelancer/profile" },
-      { label: "Messages",     icon: MessageSquare,   to: "/chat" },
-      // { label: "Reviews",      icon: Star,            to: "/freelancer/reviews" },
-      { label: "Disputes",     icon: AlertTriangle,   to: "/dispute" },
+      { label: "My Profile", icon: User, to: "/freelancer/profile" },
+      { label: "Reviews", icon: Star, to: "/freelancer/reviews" },
+      { label: "Disputes", icon: AlertTriangle, to: "/dispute" },
     ]
   },
 ];
@@ -43,29 +39,27 @@ const CLIENT_NAV = [
   {
     section: "MAIN",
     items: [
-      { label: "Dashboard",        icon: LayoutDashboard, to: "/client/dashboard" },
-      { label: "Post a Job",       icon: PlusCircle,      to: "/client/post-job" },
-      { label: "My Jobs",          icon: Briefcase,       to: "/client/jobs" },
-      { label: "Hire Freelancer",  icon: Users,           to: "/client/freelancers" },
+      { label: "Dashboard", icon: LayoutDashboard, to: "/client/dashboard" },
+      { label: "Post a Job", icon: PlusCircle, to: "/client/post-job" },
+      { label: "My Jobs", icon: Briefcase, to: "/client/jobs" },
+      { label: "Hire Freelancer", icon: Users, to: "/client/freelancers" },
     ]
   },
   {
     section: "CONTRACTS",
     items: [
-      { label: "Contracts",        icon: FileText,        to: "/contracts" },
-      { label: "Negotiation Hub",  icon: MessageSquare,   to: "/negotiations" },
-      { label: "Create Escrow",    icon: Shield,          to: "/create" },
-      { label: "Approve Work",     icon: FileText,        to: "/approve" },
+      { label: "Contracts", icon: FileText, to: "/contracts" },
+      { label: "Create Escrow", icon: Shield, to: "/create" },
+      { label: "Approve Work", icon: FileText, to: "/approve" },
     ]
   },
   {
     section: "ACCOUNT",
     items: [
-      { label: "Messages",         icon: MessageSquare,   to: "/chat" },
-      { label: "Wallet",           icon: Wallet,          to: "/wallet" },
-      { label: "Transactions",     icon: History,         to: "/transactions" },
-      { label: "Disputes",         icon: AlertTriangle,   to: "/dispute" },
-      { label: "My Profile",       icon: User,            to: "/client/profile" },
+      { label: "Wallet", icon: Wallet, to: "/wallet" },
+      { label: "Transactions", icon: History, to: "/transactions" },
+      { label: "Disputes", icon: AlertTriangle, to: "/dispute" },
+      { label: "My Profile", icon: User, to: "/client/profile" },
     ]
   },
 ];
@@ -87,7 +81,7 @@ export default function Sidebar({ walletAddress }) {
   };
 
   const displayAddr = shortAddr || (walletAddress
-    ? `${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}`
+    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : null);
 
   return (
