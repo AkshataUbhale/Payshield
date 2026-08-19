@@ -2,76 +2,76 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Clock, DollarSign, Briefcase,
-  CheckCircle, User, Send
+  CheckCircle, User, Send, ShieldAlert
 } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import SkillTag from "../../components/freelancers/SkillTag";
 import { daysLeft, formatUSDC } from "../../utils/helpers";
 import { getContract } from "../../services/api";
 
-const JOBS = {
-  1: { id: 1, title: "React Developer Needed", budget: 500, skills: ["React", "Node.js", "TypeScript"],
-    deadline: "2026-03-25", status: "Open", clientName: "TechCorp Inc.", clientRating: 4.8, contractsPosted: 12,
-    description: `We are looking for an experienced React developer to build a modern analytics dashboard. 
-
-The scope includes:
-- Responsive frontend with React + Vite
-- Node.js REST API backend
-- Integration with our existing PostgreSQL database
-- Clean, component-based architecture
-
-We prefer candidates with strong TypeScript skills and experience with charting libraries.` },
-  2: { id: 2, title: "Solidity Smart Contract Dev", budget: 1200, skills: ["Solidity", "Ethereum", "Web3", "DeFi"],
-    deadline: "2026-04-01", status: "Open", clientName: "DeFi Labs", clientRating: 4.6, contractsPosted: 8,
-    description: "Develop ERC-20 token contract with staking and multi-sig capabilities on Ethereum mainnet." },
-  3: { id: 3, title: "UI/UX Designer for SaaS", budget: 350, skills: ["Figma", "UI/UX", "Prototyping"],
-    deadline: "2026-03-20", status: "Open", clientName: "StartupHQ", clientRating: 5.0, contractsPosted: 4,
-    description: "Design comprehensive user flows and high-fidelity mockups for our B2B SaaS product." },
-};
-
 export default function JobDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [applied, setApplied] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (JOBS[id]) {
-      setJob(JOBS[id]);
-      setLoading(false);
-      return;
-    }
-
     const token = sessionStorage.getItem("ps_token");
+    setLoading(true);
     getContract(id, token)
-      .then(data => {
+      .then((data) => {
+        if (!data) throw new Error("Project not found");
         setJob({
-          id: data.projectId,
+          id: data.projectId || data._id,
           title: data.title,
           description: data.description,
           budget: data.budget,
           deadline: data.deadline,
           status: data.status,
-          skills: data.skills || ["Solana", "Rust", "Web3"],
-          clientName: "Client " + (data.clientPubkey ? `${data.clientPubkey.slice(0, 6)}...${data.clientPubkey.slice(-4)}` : "Unknown"),
+          skills: data.skills || [],
+          clientPubkey: data.clientPubkey,
+          clientName: data.clientPubkey
+            ? `Client (${data.clientPubkey.slice(0, 6)}...${data.clientPubkey.slice(-4)})`
+            : "Verified Client",
           clientRating: 5.0,
-          contractsPosted: 1
+          proposals: data.proposals || [],
         });
       })
       .catch((err) => {
         console.error("Failed to load project:", err);
-        setJob(JOBS[1]);
+        setError("Project details could not be retrieved or project does not exist.");
       })
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading || !job) {
+  if (loading) {
     return (
       <div className="app-layout">
         <Sidebar />
-        <div className="main-content" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "85vh" }}>
+        <div
+          className="main-content"
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "85vh" }}
+        >
           <div className="spinner" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !job) {
+    return (
+      <div className="app-layout">
+        <Sidebar />
+        <div className="main-content">
+          <div className="page-container" style={{ textAlign: "center", padding: "4rem" }}>
+            <ShieldAlert size={48} style={{ color: "var(--accent-red)", margin: "0 auto 16px" }} />
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Job Not Found</h2>
+            <p style={{ color: "var(--text-muted)", marginBottom: 24 }}>{error || "The requested job was not found."}</p>
+            <button className="btn btn-primary" onClick={() => navigate("/freelancer/jobs")}>
+              <ArrowLeft size={14} /> Back to Job List
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -98,100 +98,121 @@ export default function JobDetails() {
             {/* Main content */}
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div className="card">
-                <div style={{ marginBottom: 20 }}>
-                  <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>{job.title}</h1>
-                  <span className="badge badge-active">{job.status}</span>
+                <div className="flex-between" style={{ marginBottom: 16 }}>
+                  <span
+                    className={`badge badge-${
+                      job.status === "open" ? "green" : job.status === "in_progress" ? "purple" : "blue"
+                    }`}
+                  >
+                    {job.status.toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                    <Clock size={12} style={{ display: "inline", marginRight: 4 }} />
+                    {job.deadline ? `Due ${new Date(job.deadline).toLocaleDateString()}` : "Flexible timeline"}
+                  </span>
                 </div>
 
-                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-                  {(job.skills || []).map(s => <SkillTag key={s} skill={s} size="md" />)}
+                <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>{job.title}</h1>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
+                  {job.skills.map((s) => (
+                    <SkillTag key={s} skill={s} />
+                  ))}
                 </div>
 
-                <div style={{ whiteSpace: "pre-wrap", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>
+                <div className="divider" />
+
+                <h3 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 10px" }}>Project Scope & Deliverables</h3>
+                <p style={{ color: "var(--text-secondary)", lineHeight: 1.7, fontSize: 14, whiteSpace: "pre-line" }}>
                   {job.description}
-                </div>
+                </p>
               </div>
 
-              {/* Requirements / checklist */}
-              <div className="card">
-                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Requirements</h3>
-                {[
-                  "Strong portfolio with relevant work samples",
-                  "Delivered on-time in previous contracts",
-                  "Clear communication and status updates",
-                  "IPFS deliverable submission required",
-                ].map(r => (
-                  <div key={r} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
-                    <CheckCircle size={14} style={{ color: "var(--accent-green)", flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{r}</span>
+              {/* Proposals section if any */}
+              {job.proposals && job.proposals.length > 0 && (
+                <div className="card">
+                  <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>
+                    Proposals Submitted ({job.proposals.length})
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {job.proposals.map((p, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: "10px 14px",
+                          background: "rgba(255,255,255,0.03)",
+                          borderRadius: 8,
+                          border: "1px solid rgba(255,255,255,0.06)",
+                        }}
+                      >
+                        <div className="flex-between" style={{ fontSize: 13, fontWeight: 600 }}>
+                          <span>
+                            Freelancer: {p.freelancerPubkey?.slice(0, 6)}...{p.freelancerPubkey?.slice(-4)}
+                          </span>
+                          <span style={{ color: "var(--accent-green)" }}>{p.bidAmount} USDC</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                          {p.coverNote || p.coverLetter || "Proposal submitted."}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
 
-            {/* Sidebar panel */}
+            {/* Sidebar actions */}
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Budget & Deadline */}
               <div className="card">
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, letterSpacing: 0.5, marginBottom: 4 }}>BUDGET</div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: "var(--accent-green)", display: "flex", alignItems: "center", gap: 6 }}>
-                    <DollarSign size={20} />{formatUSDC(job.budget)}
-                  </div>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 4 }}>Escrow Budget</div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: "var(--accent-green)", marginBottom: 16 }}>
+                  {formatUSDC(job.budget)} USDC
                 </div>
-                <div className="divider" style={{ margin: "16px 0" }} />
-                <div style={{ display: "flex", gap: 16 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, letterSpacing: 0.5 }}>DEADLINE</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
-                      <Clock size={13} style={{ color: "var(--accent-amber)" }} />
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>{daysLeft(job.deadline)}</span>
-                    </div>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, letterSpacing: 0.5 }}>PAYMENT</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>USDC (Escrow)</div>
-                  </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: "100%", justifyContent: "center" }}
+                    onClick={() => navigate(`/apply/${job.id}`)}
+                    disabled={job.status !== "open"}
+                  >
+                    <Send size={14} /> {job.status === "open" ? "Apply for this Job" : "Job No Longer Open"}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ width: "100%", justifyContent: "center" }}
+                    onClick={() => navigate(`/chat`)}
+                  >
+                    Message Client
+                  </button>
                 </div>
               </div>
 
-              {/* Client Info */}
               <div className="card">
-                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>About the Client</h3>
-                <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 14 }}>
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 12,
-                    background: "linear-gradient(135deg,#06b6d4,#3b82f6)",
-                    display: "flex", alignItems: "center", justifyContent: "center"
-                  }}>
-                    <Briefcase size={18} color="white" />
+                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>About the Client</h3>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: "50%",
+                      background: "rgba(99,102,241,0.15)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--accent-purple)",
+                    }}
+                  >
+                    <User size={20} />
                   </div>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700 }}>{job.clientName}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>⭐ {job.clientRating} · {job.contractsPosted} contracts</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      Public Key: {job.clientPubkey?.slice(0, 8)}...
+                    </div>
                   </div>
                 </div>
               </div>
-
-              {/* Apply CTA */}
-              {!applied ? (
-                <button
-                  id="btn-apply-job"
-                  className="btn btn-primary btn-lg"
-                  style={{ width: "100%" }}
-                  onClick={() => navigate(`/freelancer/apply/${job.id}`)}
-                >
-                  <Send size={16} /> Apply for this Job
-                </button>
-              ) : (
-                <div style={{
-                  background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)",
-                  borderRadius: 12, padding: "14px 20px", textAlign: "center"
-                }}>
-                  <CheckCircle size={20} style={{ color: "var(--accent-green)", marginBottom: 6 }} />
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--accent-green)" }}>Application Submitted!</div>
-                </div>
-              )}
             </div>
           </div>
         </div>

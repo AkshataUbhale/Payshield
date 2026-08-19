@@ -2,34 +2,24 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Wallet, FileText, TrendingUp, Briefcase,
-  ArrowRight, Search, Star, ChevronRight
+  ArrowRight, Search
 } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import NotificationBell from "../../components/common/NotificationBell";
 import StatCard from "../../components/dashboard/StatCard";
-import ActivityFeed from "../../components/dashboard/ActivityFeed";
 import EarningsChart from "../../components/dashboard/EarningsChart";
 import JobCard from "../../components/jobs/JobCard";
 import { useAuth } from "../../hooks/useAuth";
 import { useWallet } from "../../hooks/useWallet";
 import { getContracts } from "../../services/api";
 
-const DEMO_ACTIVITY = [];
-
-const CHART_DATA = [
-  { month: "Oct", amount: 0 },
-  { month: "Nov", amount: 0 },
-  { month: "Dec", amount: 0 },
-  { month: "Jan", amount: 0 },
-  { month: "Feb", amount: 0 },
-  { month: "Mar", amount: 0 },
-];
-
 export default function FreelancerDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { shortAddress } = useWallet();
+  const { shortAddress, publicKey } = useWallet();
   const [activeCount, setActiveCount] = useState(0);
+  const [totalEarned, setTotalEarned] = useState(0);
+  const [appliedCount, setAppliedCount] = useState(0);
   const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,29 +30,33 @@ export default function FreelancerDashboard() {
       return;
     }
 
-    getContracts({ status: "in_progress" }, token)
-      .then(data => {
-        const list = data.projects ?? data;
-        setActiveCount(Array.isArray(list) ? list.length : 0);
-      })
-      .catch(err => console.error("Failed to load active contracts:", err));
+    getContracts({}, token)
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data.projects || data.contracts || [];
+        const inProgress = list.filter((c) => c.status === "in_progress" && (c.freelancerPubkey === publicKey || !c.freelancerPubkey));
+        const completed = list.filter((c) => c.status === "completed" && c.freelancerPubkey === publicKey);
+        const applied = list.filter((c) => (c.proposals || []).some((p) => p.freelancerPubkey === publicKey));
 
-    getContracts({ status: "open" }, token)
-      .then(data => {
-        const list = data.projects ?? data;
-        if (Array.isArray(list)) {
-          setRecommendedJobs(list.slice(0, 3));
-        }
+        setActiveCount(inProgress.length);
+        setAppliedCount(applied.length);
+        setTotalEarned(completed.reduce((sum, c) => sum + (Number(c.budget) || 0), 0));
+
+        const openJobs = list.filter((c) => c.status === "open").slice(0, 3);
+        setRecommendedJobs(openJobs);
       })
-      .catch(err => console.error("Failed to load open jobs:", err))
+      .catch((err) => console.error("Failed to load contracts:", err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [publicKey]);
 
   const stats = [
-    { label: "Wallet",           value: shortAddress || "Not connected",               icon: Wallet,     color: "purple", change: "Solana Devnet",  up: true  },
-    { label: "Active Contracts", value: activeCount.toString(),                         icon: FileText,   color: "blue",   change: "Real-time count",  up: true  },
-    { label: "Total Earned",     value: "$0.00",                   icon: TrendingUp,  color: "green",  change: "Real-time earnings",   up: true  },
-    { label: "Jobs Applied",     value: "0",                        icon: Briefcase,  color: "amber",  change: "0 pending",     up: true  },
+    { label: "Wallet", value: shortAddress || "Not connected", icon: Wallet, color: "purple", change: "Solana Devnet", up: true },
+    { label: "Active Contracts", value: activeCount.toString(), icon: FileText, color: "blue", change: "Real-time count", up: true },
+    { label: "Total Earned", value: `${totalEarned} USDC`, icon: TrendingUp, color: "green", change: "On-chain payouts", up: true },
+    { label: "Jobs Applied", value: appliedCount.toString(), icon: Briefcase, color: "amber", change: `${appliedCount} proposals`, up: true },
+  ];
+
+  const chartData = [
+    { month: "Current", amount: totalEarned },
   ];
 
   return (
@@ -73,7 +67,7 @@ export default function FreelancerDashboard() {
         <div className="topbar">
           <div className="topbar-left">
             <span className="topbar-title">Freelancer Dashboard</span>
-            <span className="topbar-breadcrumb">Welcome back, {user?.name?.split(" ")[0] || "Alex"}! 👋</span>
+            <span className="topbar-breadcrumb">Welcome back, {user?.name?.split(" ")[0] || user?.username || "Freelancer"}! 👋</span>
           </div>
           <div className="topbar-right">
             <NotificationBell />
@@ -90,7 +84,7 @@ export default function FreelancerDashboard() {
         <div className="page-container">
           {/* Stats */}
           <div className="grid-4 mb-8">
-            {stats.map(s => <StatCard key={s.label} {...s} />)}
+            {stats.map((s) => <StatCard key={s.label} {...s} />)}
           </div>
 
           <div className="grid-2 mb-6">
@@ -98,88 +92,54 @@ export default function FreelancerDashboard() {
             <div className="card">
               <div className="flex-between mb-6">
                 <div>
-                  <h2 style={{ fontSize: 16, fontWeight: 700 }}>Earnings Overview</h2>
-                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Last 6 months</p>
+                  <h2 style={{ fontSize: 16, fontWeight: 700 }}>Earnings Trend</h2>
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Real-time earnings</p>
                 </div>
                 <button className="btn btn-ghost btn-sm" onClick={() => navigate("/freelancer/payments")}>
+                  Details <ArrowRight size={13} />
+                </button>
+              </div>
+              <EarningsChart data={chartData} />
+            </div>
+
+            {/* Recommended Jobs */}
+            <div className="card">
+              <div className="flex-between mb-6">
+                <div>
+                  <h2 style={{ fontSize: 16, fontWeight: 700 }}>Latest Open Jobs</h2>
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Verified on-chain escrow projects</p>
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => navigate("/freelancer/jobs")}>
                   View All <ArrowRight size={13} />
                 </button>
               </div>
-              <EarningsChart data={CHART_DATA} />
-              <div className="flex-between mt-6" style={{ marginTop: 24 }}>
-                <div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>This Month</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: "var(--accent-green)" }}>$1,800</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>Total Lifetime</div>
-                  <div style={{ fontSize: 22, fontWeight: 800 }}>$7,380</div>
-                </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {loading ? (
+                  <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "2rem" }}>
+                    Loading jobs from blockchain...
+                  </div>
+                ) : recommendedJobs.length === 0 ? (
+                  <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "2rem" }}>
+                    No open jobs at the moment. Post or check back soon!
+                  </div>
+                ) : (
+                  recommendedJobs.map((job) => (
+                    <JobCard
+                      key={job.projectId || job._id}
+                      job={{
+                        id: job.projectId || job._id,
+                        title: job.title,
+                        description: job.description,
+                        budget: job.budget,
+                        deadline: job.deadline,
+                        skills: job.skills || [],
+                        status: job.status,
+                      }}
+                      onClick={() => navigate(`/job/${job.projectId || job._id}`)}
+                    />
+                  ))
+                )}
               </div>
-            </div>
-
-            {/* Activity Feed */}
-            <div className="card">
-              <div className="flex-between mb-6">
-                <h2 style={{ fontSize: 16, fontWeight: 700 }}>Activity Feed</h2>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent-green)",
-                    animation: "pulse 2s infinite", boxShadow: "0 0 6px rgba(16,185,129,0.6)" }} />
-                  <span style={{ fontSize: 12, color: "var(--accent-green)", fontWeight: 600 }}>Live</span>
-                </div>
-              </div>
-              <ActivityFeed items={DEMO_ACTIVITY} />
-            </div>
-          </div>
-
-          {/* Recommended Jobs */}
-          <div className="card">
-            <div className="flex-between mb-6">
-              <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700 }}>Recommended Jobs</h2>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Matched to your skills</p>
-              </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => navigate("/freelancer/jobs")}>
-                View All <ArrowRight size={13} />
-              </button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {loading ? (
-                <div style={{ display: "flex", justifyContent: "center", padding: "20px 0" }}>
-                  <div className="spinner" />
-                </div>
-              ) : recommendedJobs.length > 0 ? (
-                recommendedJobs.map(job => (
-                  <JobCard key={job.projectId} job={{
-                    ...job,
-                    id: job.projectId,
-                    skills: job.skills || ["Solana", "Web3"],
-                    clientName: "Client " + (job.clientPubkey ? `${job.clientPubkey.slice(0, 6)}...${job.clientPubkey.slice(-4)}` : "Unknown")
-                  }} onClick={() => navigate(`/freelancer/job/${job.projectId}`)} />
-                ))
-              ) : (
-                <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-secondary)", fontSize: 13 }}>
-                  No open jobs available on PayShield yet.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Links */}
-          <div className="card mt-6" style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Quick Actions</h2>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              {[
-                { label: "Browse Jobs",      to: "/freelancer/jobs",     color: "btn-primary" },
-                { label: "My Contracts",     to: "/freelancer/contracts", color: "btn-secondary" },
-                { label: "Submit Work",      to: "/submit",              color: "btn-ghost" },
-                { label: "View Payments",    to: "/freelancer/payments", color: "btn-success" },
-                { label: "Dispute Center",   to: "/dispute",             color: "btn-danger" },
-              ].map(a => (
-                <button key={a.label} className={`btn ${a.color}`} onClick={() => navigate(a.to)}>
-                  {a.label} <ChevronRight size={13} />
-                </button>
-              ))}
             </div>
           </div>
         </div>

@@ -155,17 +155,26 @@ export class AgentService {
 
     try {
       // Step 1: Query Gemini with native Function/Tool declarations
-      const firstPass: any = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: userMessage,
-        config: {
-          tools: this.toolDeclarations,
-          systemInstruction: `You are PayShield AI Assistant, an autonomous agent capable of executing tools on the Solana ledger, GitHub repos, and the RAG vector knowledge base. If the user asks about a transaction, wallet, GitHub repo, or escrow rule, call the appropriate tool.`,
-        },
-      });
+      let firstPass: any = null;
+      const candidateModels = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"];
+      for (const model of candidateModels) {
+        try {
+          firstPass = await ai.models.generateContent({
+            model,
+            contents: userMessage,
+            config: {
+              tools: this.toolDeclarations,
+              systemInstruction: `You are PayShield AI Assistant, an autonomous agent capable of executing tools on the Solana ledger, GitHub repos, and the RAG vector knowledge base. If the user asks about a transaction, wallet, GitHub repo, or escrow rule, call the appropriate tool.`,
+            },
+          });
+          if (firstPass) break;
+        } catch {
+          // try next model
+        }
+      }
 
       // Step 2: Check if Gemini decided to call any tools autonomously
-      const functionCalls = firstPass.functionCalls || [];
+      const functionCalls = firstPass?.functionCalls || [];
 
       if (functionCalls.length > 0) {
         for (const call of functionCalls) {

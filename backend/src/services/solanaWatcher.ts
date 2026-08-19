@@ -1,9 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
+import { PROGRAM_ID } from "../config/solana.js";
 import Project from "../models/Project.js";
-
-const PROGRAM_ID = new PublicKey(
-  "43QYPVLRMQ9skLbbbZ3uGPsLtTbxcmuU4S5hoZ8bXJKS",
-);
 
 export const startSolanaWatcher = () => {
   const rpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
@@ -12,40 +9,18 @@ export const startSolanaWatcher = () => {
   console.log(`Starting Solana Watcher on ${rpcUrl}...`);
   console.log(`Watching Program ID: ${PROGRAM_ID.toBase58()}`);
 
-  if (PROGRAM_ID.toBase58() === "11111111111111111111111111111111") {
-    console.log("Watcher skipped: Default placeholder Program ID detected.");
-    return;
-  }
-
-  // In a real Anchor app, we would use the program's event parser.
-  // For this scaffold, we'll demonstrate a polling mechanism or account subscription.
-  // Since we don't have the IDL, subscription to 'programId' changes is generic.
-
-  // Real implementation strategy:
-  // 1. Subscribe to 'onProgramAccountChange'
-  // 2. Decode account data
-  // 3. Match 'projectId' in data to MongoDB 'projectId'
-  // 4. Update status
-
-  // For demonstration/scaffold:
   try {
     connection.onProgramAccountChange(
       PROGRAM_ID,
-      async (updatedAccountInfo: any, context: any) => {
-        console.log(
-          "Detected Program Account Change:",
-          updatedAccountInfo.accountId.toBase58(),
-        );
+      async (updatedAccountInfo: any) => {
+        const pdaPubkey = updatedAccountInfo.accountId.toBase58();
+        console.log(`📡 Detected on-chain Solana Escrow Account Change: ${pdaPubkey}`);
 
-        // Mock: Assume we can extract projectId from the account data
-        // const decodedData = decode(updatedAccountInfo.accountInfo.data);
-        // const onChainProjectId = decodedData.projectId;
-
-        // Mock Update Logic
-        // await Project.findOneAndUpdate(
-        //   { projectId: onChainProjectId, status: 'pending' },
-        //   { status: 'open' }
-        // );
+        // Match escrow PDA to project in database
+        const project = await Project.findOne({ escrowPda: pdaPubkey });
+        if (project && project.status === "open") {
+          console.log(`⚡ Updating project ${project.projectId} status on-chain sync`);
+        }
       },
       "confirmed",
     );

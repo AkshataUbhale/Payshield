@@ -1,41 +1,89 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Star, Shield, Send } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import FreelancerCard from "../../components/freelancers/FreelancerCard";
-import SkillTag from "../../components/freelancers/SkillTag";
 import PortfolioCard from "../../components/freelancers/PortfolioCard";
 import Modal from "../../components/common/Modal";
-
-const FREELANCERS = {
-  f1: { id: "f1", name: "Alex Johnson", skills: ["React","Node.js","TypeScript","Web3"], rating: 4.9,
-    hourlyRate: 45, completedJobs: 34, bio: "Full-stack developer specializing in React and blockchain integrations.", location: "USA",
-    portfolio: [
-      { title: "DeFi Dashboard", description: "Analytics dashboard with real-time on-chain data.", tech:["React","Web3"], link:"#" },
-      { title: "NFT Storefront", description: "Full NFT marketplace front-end and smart contracts.", tech:["Solidity","React"], link:"#" },
-    ]
-  },
-  f2: { id: "f2", name: "Priya Sharma", skills: ["Solidity","Ethereum","Web3","DeFi"], rating: 4.7,
-    hourlyRate: 60, completedJobs: 22, bio: "Smart contract developer with 3 years of DeFi and NFT experience.", location: "India",
-    portfolio: [
-      { title: "ERC-20 Token Suite", description: "Custom token with staking and governance.", tech:["Solidity","Hardhat"], link:"#" },
-    ]
-  },
-};
+import * as api from "../../services/api";
 
 export default function HireFreelancer() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const freelancer = FREELANCERS[id] || FREELANCERS.f1;
+  const [freelancer, setFreelancer] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ title: "", budget: "", message: "" });
   const [hired, setHired] = useState(false);
 
+  useEffect(() => {
+    async function loadFreelancer() {
+      setLoading(true);
+      try {
+        const token = sessionStorage.getItem("ps_token");
+        const res = await api.getFreelancers(token);
+        const list = Array.isArray(res) ? res : res.freelancers || [];
+        const match = list.find((f) => f.publicKey === id || f._id === id);
+        if (match) {
+          setFreelancer({
+            id: match.publicKey || match._id,
+            name: match.name || match.username || `Developer (${match.publicKey?.slice(0, 6)}...${match.publicKey?.slice(-4)})`,
+            skills: match.skills || ["Solana", "Web3", "Full-Stack"],
+            rating: 5.0,
+            hourlyRate: match.hourlyRate || 50,
+            completedJobs: match.completedProjects || 0,
+            bio: match.bio || "Full-stack developer specializing in Solana smart contracts and decentralized applications.",
+            location: match.location || "Decentralized / Remote",
+            portfolio: [],
+          });
+        } else {
+          setFreelancer({
+            id: id || "Unknown",
+            name: `Developer (${id?.slice(0, 6)}...${id?.slice(-4)})`,
+            skills: ["Solana", "Web3"],
+            rating: 5.0,
+            hourlyRate: 50,
+            completedJobs: 0,
+            bio: "Verified developer ready for escrow contract assignment.",
+            location: "Remote",
+            portfolio: [],
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load freelancer details:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFreelancer();
+  }, [id]);
+
   const handleHire = () => {
     setShowModal(false);
     setHired(true);
-    setTimeout(() => navigate("/create"), 1500);
+    setTimeout(() => {
+      navigate("/create", {
+        state: {
+          freelancerPubkey: freelancer?.id,
+          title: form.title,
+          budget: form.budget,
+        },
+      });
+    }, 1000);
   };
+
+  if (loading) {
+    return (
+      <div className="app-layout">
+        <Sidebar />
+        <div className="main-content">
+          <div className="page-container" style={{ padding: "4rem", textAlign: "center", color: "var(--text-muted)" }}>
+            Loading developer details...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-layout">
@@ -44,10 +92,12 @@ export default function HireFreelancer() {
         <div className="topbar">
           <div className="topbar-left">
             <span className="topbar-title">Hire Freelancer</span>
-            <span className="topbar-breadcrumb">{freelancer.name}</span>
+            <span className="topbar-breadcrumb">{freelancer?.name}</span>
           </div>
           <div className="topbar-right">
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}><ArrowLeft size={14}/> Back</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}>
+              <ArrowLeft size={14} /> Back
+            </button>
           </div>
         </div>
 
@@ -55,13 +105,16 @@ export default function HireFreelancer() {
           <div className="grid-2" style={{ alignItems: "start" }}>
             {/* Left: profile */}
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <FreelancerCard freelancer={freelancer} />
+              {freelancer && <FreelancerCard freelancer={freelancer} />}
 
-              {/* Portfolio */}
               <div className="card">
-                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Portfolio</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {(freelancer.portfolio || []).map(p => <PortfolioCard key={p.title} item={p} />)}
+                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Security & Escrow Guarantee</h3>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <Shield size={20} style={{ color: "var(--accent-green)", flexShrink: 0, marginTop: 2 }} />
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>
+                    Hiring on PayShield locks your funds into an autonomous Solana PDA escrow. Funds are only released
+                    once you review deliverables or AI Proof-of-Work completes with zero disputes.
+                  </p>
                 </div>
               </div>
             </div>
@@ -71,76 +124,77 @@ export default function HireFreelancer() {
               {hired ? (
                 <div className="card" style={{ textAlign: "center", padding: 40 }}>
                   <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-                  <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Offer Sent!</h3>
-                  <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>Redirecting to create escrow contract…</p>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Proposal Accepted!</h3>
+                  <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
+                    Redirecting to initialize Solana Devnet Escrow PDA…
+                  </p>
                 </div>
               ) : (
                 <div className="card">
-                  <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Send a Job Offer</h3>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Send a Direct Job Offer</h3>
                   <div className="form-group">
-                    <label className="form-label">Job Title</label>
-                    <input className="form-input" placeholder="e.g. React Dashboard Build"
-                      value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+                    <label className="form-label">Project Title</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g. Full-Stack Solana Escrow & AI Platform"
+                      value={form.title}
+                      onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                    />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Budget (USDC)</label>
-                    <input className="form-input" type="number" placeholder="500"
-                      value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))} />
+                    <label className="form-label">Escrow Budget (USDC / SOL)</label>
+                    <input
+                      className="form-input"
+                      type="number"
+                      placeholder="e.g. 500"
+                      value={form.budget}
+                      onChange={(e) => setForm((f) => ({ ...f, budget: e.target.value }))}
+                    />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Message</label>
-                    <textarea className="form-textarea" rows={4}
-                      placeholder="Describe your project and why you'd like to hire this freelancer…"
-                      value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} />
+                    <label className="form-label">Project Scope / Milestone Note</label>
+                    <textarea
+                      className="form-textarea"
+                      rows={4}
+                      placeholder="Describe what deliverables you expect for this milestone..."
+                      value={form.message}
+                      onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+                    />
                   </div>
-                  <div style={{
-                    background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)",
-                    borderRadius: 10, padding: "10px 14px", marginBottom: 20, fontSize: 13, color: "var(--text-secondary)"
-                  }}>
-                    <Shield size={13} style={{ display: "inline", marginRight: 6, color: "var(--accent-green)" }} />
-                    Payment will be held in escrow until you approve the work.
-                  </div>
-                  <button className="btn btn-primary" style={{ width: "100%" }} onClick={() => setShowModal(true)}>
-                    <Send size={15} /> Send Job Offer
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: "100%", justifyContent: "center" }}
+                    onClick={() => setShowModal(true)}
+                    disabled={!form.title || !form.budget}
+                  >
+                    <Send size={14} /> Send Escrow Job Offer
                   </button>
                 </div>
               )}
-
-              {/* Rates info */}
-              <div className="card card-sm">
-                <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "var(--accent-purple)" }}>${freelancer.hourlyRate}/hr</div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Hourly Rate</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "var(--accent-green)" }}>{freelancer.rating}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Rating</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "var(--accent-blue)" }}>{freelancer.completedJobs}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Jobs Done</div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Confirm modal */}
-      {showModal && (
-        <Modal title="Confirm Job Offer" onClose={() => setShowModal(false)}>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 20 }}>
-            You're sending a job offer to <strong>{freelancer.name}</strong> for{" "}
-            <strong>{form.budget || "?"} USDC</strong>. After acceptance, you'll create an escrow contract.
-          </p>
-          <div style={{ display: "flex", gap: 12 }}>
-            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowModal(false)}>Cancel</button>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleHire}>Confirm & Send</button>
-          </div>
-        </Modal>
-      )}
+        {/* Confirmation Modal */}
+        {showModal && (
+          <Modal
+            isOpen={showModal}
+            onClose={() => setShowModal(false)}
+            title="Confirm Job Offer"
+            onConfirm={handleHire}
+            confirmText="Proceed to Escrow Deposit"
+          >
+            <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+              You are offering <strong>{form.title}</strong> with a budget of{" "}
+              <strong style={{ color: "var(--accent-green)" }}>{form.budget} USDC</strong> to{" "}
+              <strong>{freelancer?.name}</strong>.
+            </p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8 }}>
+              Clicking proceed will take you to deposit funds into the Solana escrow contract.
+            </p>
+          </Modal>
+        )}
+      </div>
     </div>
   );
 }

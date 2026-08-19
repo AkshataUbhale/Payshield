@@ -1,23 +1,15 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import { GoogleGenAI } from "@google/genai";
 import { PLATFORM_RULES } from "../services/rag/platformTermsData.js";
 import { DISPUTE_PRECEDENTS } from "../services/rag/precedentData.js";
 import { QdrantService } from "../services/rag/qdrantService.js";
+import { RAGService } from "../services/rag/ragService.js";
 import RuleModel from "../models/Rule.js";
 import PrecedentModel from "../models/Precedent.js";
 
 dotenv.config();
 
 const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://localhost:27017/payshield";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-
-if (!GEMINI_API_KEY) {
-  console.error("❌ GEMINI_API_KEY is not defined in .env");
-  process.exit(1);
-}
-
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 async function run() {
   try {
@@ -38,26 +30,19 @@ async function run() {
       const textToEmbed = `${rule.title}\nCategory: ${rule.category}\nContent: ${rule.content}\nKeywords: ${rule.keywords.join(", ")}`;
       console.log(`- Generating 768-dim embedding for rule: ${rule.id}`);
 
-      const embedRes: any = await ai.models.embedContent({
-        model: "text-embedding-004",
-        contents: textToEmbed,
-      });
-
-      if (!embedRes.embedding?.values) {
-        throw new Error(`Failed to generate embedding for rule ${rule.id}`);
-      }
+      const vector = await RAGService.getEmbedding(textToEmbed);
 
       await RuleModel.create({
         id: rule.id,
         title: rule.title,
         content: rule.content,
         keywords: rule.keywords,
-        embedding: embedRes.embedding.values,
+        embedding: vector,
       });
 
       rulePoints.push({
         id: rule.id,
-        vector: embedRes.embedding.values,
+        vector: vector,
         payload: rule,
       });
     }
@@ -70,14 +55,7 @@ async function run() {
       const textToEmbed = `${prec.title}\nCategory: ${prec.category}\nCase Summary: ${prec.caseSummary}\nEvidence: ${prec.evidenceSummary}\nRationale: ${prec.rulingRationale}\nKeywords: ${prec.keywords.join(", ")}`;
       console.log(`- Generating 768-dim embedding for precedent: ${prec.id}`);
 
-      const embedRes: any = await ai.models.embedContent({
-        model: "text-embedding-004",
-        contents: textToEmbed,
-      });
-
-      if (!embedRes.embedding?.values) {
-        throw new Error(`Failed to generate embedding for precedent ${prec.id}`);
-      }
+      const vector = await RAGService.getEmbedding(textToEmbed);
 
       await PrecedentModel.create({
         id: prec.id,
@@ -90,12 +68,12 @@ async function run() {
         rulingRationale: prec.rulingRationale,
         applicableRules: prec.applicableRules,
         keywords: prec.keywords,
-        embedding: embedRes.embedding.values,
+        embedding: vector,
       });
 
       precedentPoints.push({
         id: prec.id,
-        vector: embedRes.embedding.values,
+        vector: vector,
         payload: prec,
       });
     }
