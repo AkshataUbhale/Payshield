@@ -13,7 +13,7 @@ pub struct InitializeEscrow<'info> {
         bump,
         constraint = project.status == ProjectStatus::Assigned @ ErrorCode::InvalidProjectStatus
     )]
-    pub project: Account<'info, Project>,
+    pub project: Box<Account<'info, Project>>,
 
     #[account(
         init,
@@ -22,19 +22,19 @@ pub struct InitializeEscrow<'info> {
         seeds = [b"escrow", project_id.to_le_bytes().as_ref()],
         bump
     )]
-    pub escrow: Account<'info, Escrow>,
+    pub escrow: Box<Account<'info, Escrow>>,
 
     #[account(mut, constraint = client.key() == project.client @ ErrorCode::Unauthorized)]
     pub client: Signer<'info>,
 
-    pub mint: Account<'info, Mint>,
+    pub mint: Box<Account<'info, Mint>>,
 
     #[account(
         mut,
         constraint = client_ata.mint == mint.key(),
         constraint = client_ata.owner == client.key()
     )]
-    pub client_ata: Account<'info, TokenAccount>,
+    pub client_ata: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -42,7 +42,7 @@ pub struct InitializeEscrow<'info> {
         associated_token::mint = mint,
         associated_token::authority = escrow,
     )]
-    pub escrow_vault: Account<'info, TokenAccount>,
+    pub escrow_vault: Box<Account<'info, TokenAccount>>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
