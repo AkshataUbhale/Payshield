@@ -3,6 +3,10 @@ import { Program, AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import { readFileSync } from "fs";
 import { join } from "path";
 
+export const PROGRAM_ID = new PublicKey(
+  process.env.SOLANA_PROGRAM_ID || "43QYPVLRMQ9skLbbbZ3uGPsLtTbxcmuU4S5hoZ8bXJKS"
+);
+
 export async function initializeSolana() {
   // HTTP connection (for RPC calls)
   const connection = new Connection(

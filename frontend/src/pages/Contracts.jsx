@@ -5,50 +5,7 @@ import ContractCard from "../components/ContractCard";
 import { Search, Filter, Plus } from "lucide-react";
 import { getContracts } from "../services/api";
 
-const ALL_CONTRACTS = [
-  {
-    id: 1, title:"Logo & Brand Identity", freelancer:"0x1a2b...c3d4", client:"0xA1B2...D3E4",
-    amount:200, status:"Active", milestone:"Design Mockup", progress:60,
-    createdAt:"Mar 10, 2025", description:"Professional logo design with full brand guidelines and asset kit."
-  },
-  {
-    id: 2, title:"Smart Contract Development", freelancer:"0x5e6f...7a8b", client:"0xA1B2...D3E4",
-    amount:800, status:"Submitted", milestone:"Testing & Deployment", progress:100,
-    createdAt:"Mar 8, 2025", description:"ERC-20 token + staking contract with full test suite and deployment scripts."
-  },
-  {
-    id: 3, title:"Content Writing — 10 Articles", freelancer:"0x9c0d...e1f2", client:"0xA1B2...D3E4",
-    amount:120, status:"Pending", milestone:"Draft 1 Submission", progress:0,
-    createdAt:"Mar 12, 2025", description:"SEO-optimized articles on blockchain, DeFi, and Web3 topics."
-  },
-  {
-    id: 4, title:"Mobile App UI Design", freelancer:"0x2c3d...4e5f", client:"0xA1B2...D3E4",
-    amount:450, status:"Active", milestone:"Figma Prototypes", progress:35,
-    createdAt:"Mar 5, 2025", description:"End-to-end Figma design for a DeFi portfolio tracker mobile app."
-  },
-  {
-    id: 5, title:"SEO Audit & Strategy", freelancer:"0x6g7h...8i9j", client:"0xA1B2...D3E4",
-    amount:300, status:"Disputed", milestone:"Final Report", progress:80,
-    createdAt:"Feb 28, 2025", description:"Comprehensive SEO audit with 90-day growth strategy."
-  },
-  {
-    id: 6, title:"Backend API Development", freelancer:"0xAaB...CcDd", client:"0xA1B2...D3E4",
-    amount:1200, status:"Completed", milestone:"All Milestones", progress:100,
-    createdAt:"Feb 20, 2025", description:"Node.js REST API with PostgreSQL, Docker, and CI/CD pipeline."
-  },
-];
-
 const FILTERS = ["All", "Active", "Pending", "Submitted", "Disputed", "Completed"];
-
-// Fallback demo data shown when backend is offline
-const DEMO_CONTRACTS = [
-  { id: 1, title:"Logo & Brand Identity", freelancer:"1a2b...c3d4", client:"A1B2...D3E4",
-    amount:200, status:"Active", milestone:"Design Mockup", progress:60, createdAt:"Mar 10, 2025",
-    description:"Professional logo design with full brand guidelines and asset kit." },
-  { id: 2, title:"Smart Contract Development", freelancer:"5e6f...7a8b", client:"A1B2...D3E4",
-    amount:800, status:"Submitted", milestone:"Testing & Deployment", progress:100, createdAt:"Mar 8, 2025",
-    description:"ERC-20 token + staking contract with full test suite." },
-];
 
 export default function Contracts() {
   const navigate = useNavigate();
@@ -60,10 +17,30 @@ export default function Contracts() {
   useEffect(() => {
     const token = sessionStorage.getItem("ps_token");
     getContracts({}, token)
-      .then(data => setContracts(data.projects ?? data))
-      .catch(() => setContracts(DEMO_CONTRACTS))
+      .then(data => {
+        const list = data.projects ?? data ?? [];
+        if (Array.isArray(list)) {
+          setContracts(list.map(c => ({
+            id: c.projectId,
+            title: c.title,
+            description: c.description,
+            amount: c.budget,
+            status: c.status === "open" ? "Pending" : c.status === "in_progress" ? "Active" : c.status === "completed" ? "Completed" : c.status,
+            freelancer: c.freelancerPubkey ? `${c.freelancerPubkey.slice(0, 6)}...${c.freelancerPubkey.slice(-4)}` : "Unassigned",
+            client: c.clientPubkey ? `${c.clientPubkey.slice(0, 6)}...${c.clientPubkey.slice(-4)}` : "Unknown",
+            milestone: "Primary Milestone",
+            progress: c.status === "completed" ? 100 : c.status === "in_progress" ? 50 : 0,
+            createdAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Today"
+          })));
+        } else {
+          setContracts([]);
+        }
+      })
+      .catch(() => setContracts([]))
       .finally(() => setLoading(false));
   }, []);
+
+  const totalValue = contracts.reduce((sum, c) => sum + (c.amount || 0), 0);
 
   const filtered = contracts.filter(c => {
     const matchFilter = filter === "All" || c.status === filter;
@@ -136,10 +113,10 @@ export default function Contracts() {
           {/* Summary Stats */}
           <div className="grid-4 mb-6">
             {[
-              { label:"Total Value",    value:"$3,070", color:"purple" },
-              { label:"Active",         value:`${counts.Active}`,    color:"green"  },
-              { label:"Pending Review", value:`${counts.Submitted}`, color:"blue"   },
-              { label:"Disputed",       value:`${counts.Disputed}`,  color:"amber"  },
+              { label:"Total Value",    value:`$${totalValue}`, color:"purple" },
+              { label:"Active",         value:`${counts.Active || 0}`,    color:"green"  },
+              { label:"Pending Review", value:`${counts.Pending || 0}`, color:"blue"   },
+              { label:"Disputed",       value:`${counts.Disputed || 0}`,  color:"amber"  },
             ].map(s => (
               <div key={s.label} className="card card-sm">
                 <div style={{ fontSize:11, color:"var(--text-muted)", fontWeight:600, marginBottom:4 }}>{s.label}</div>

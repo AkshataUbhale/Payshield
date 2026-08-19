@@ -2,12 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shield, Code2, Briefcase, ArrowRight } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import { useWallet } from "../../hooks/useWallet";
 
 export default function RoleSelection() {
   const navigate = useNavigate();
-  const { user, login, loginWithWallet, updateUser } = useAuth();
-  const { connect } = useWallet();
+  const { user, loginWithWallet, updateUser } = useAuth();
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
 

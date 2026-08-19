@@ -123,3 +123,19 @@ export const updateProfile = async (
     res.status(500).json({ message: "Server Error" });
   }
 };
+
+// @desc    Get all freelancers
+// @route   GET /api/users/freelancers
+// @access  Public
+export const getFreelancers = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const freelancers = await User.find({ role: "freelancer" });
+    res.status(200).json(freelancers);
+  } catch (error) {
+    console.error("Error fetching freelancers:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};

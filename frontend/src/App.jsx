@@ -45,6 +45,13 @@ import WalletPage from "./pages/WalletPage";
 import TransactionHistory from "./pages/TransactionHistory";
 import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
+import ChatPage from "./pages/ChatPage";
+
+// AI Arbitration & Negotiation
+import ClientArbitrator from "./pages/ClientArbitrator";
+import FreelancerArbitrator from "./pages/FreelancerArbitrator";
+import ArbitrationResult from "./pages/ArbitrationResult";
+import NegotiationHub from "./pages/NegotiationHub";
 
 // Public Pages
 import AboutPage from "./pages/public/AboutPage";
@@ -105,11 +112,24 @@ function App() {
             <Route path="/approve" element={<PaymentApproval />} />
             <Route path="/dispute" element={<DisputeCenter />} />
 
+            {/* ── AI Arbitration & Negotiation ───────────── */}
+            <Route path="/client/arbitrator" element={<ClientArbitrator />} />
+            <Route path="/freelancer/arbitrator" element={<FreelancerArbitrator />} />
+            <Route path="/dispute/arbitrator/client" element={<ClientArbitrator />} />
+            <Route path="/dispute/arbitrator/freelancer" element={<FreelancerArbitrator />} />
+            <Route path="/arbitration-result" element={<ArbitrationResult />} />
+            <Route path="/arbitration-result/:id" element={<ArbitrationResult />} />
+            <Route path="/negotiate" element={<NegotiationHub />} />
+            <Route path="/negotiate/:id" element={<NegotiationHub />} />
+            <Route path="/negotiation-hub" element={<NegotiationHub />} />
+
             {/* ── Shared pages ────────────────────────────── */}
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/transactions" element={<TransactionHistory />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/messages" element={<ChatPage />} />
 
             {/* ── Fallback ────────────────────────────────── */}
             <Route path="*" element={<Navigate to="/" replace />} />

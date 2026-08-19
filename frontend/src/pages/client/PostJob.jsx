@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, PlusCircle, X, Calendar } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import NotificationBell from "../../components/common/NotificationBell";
+import { createContract } from "../../services/api";
 
 const SKILL_SUGGESTIONS = ["React", "Node.js", "Solidity", "Python", "Figma", "TypeScript", "Vue", "GraphQL", "AWS", "DevOps"];
 
@@ -23,12 +24,29 @@ export default function PostJob() {
   };
   const removeSkill = (s) => setSkills(skills.filter(x => x !== s));
 
-  const handlePost = () => {
-    if (!form.title || !form.budget || !skills.length) {
-      alert("Please fill title, budget, and at least one skill."); return;
+  const handlePost = async () => {
+    if (!form.title || !form.budget || !skills.length || !form.description) {
+      alert("Please fill title, budget, description, and at least one skill."); return;
     }
     setLoading(true);
-    setTimeout(() => { setLoading(false); setPosted(true); }, 1200);
+    try {
+      const token = sessionStorage.getItem("ps_token");
+      const projectId = Date.now().toString();
+      await createContract({
+        projectId,
+        title: form.title,
+        description: form.description,
+        budget: parseFloat(form.budget),
+        deadline: form.deadline,
+        skills,
+      }, token);
+      setPosted(true);
+    } catch (err) {
+      console.error("Failed to post job:", err);
+      alert(err.message || "Failed to post job. Make sure the backend is running.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (posted) return (

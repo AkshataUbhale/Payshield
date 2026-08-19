@@ -68,27 +68,33 @@ export default function ClientArbitrator() {
     try {
       setLoading(true);
 
-      const response = await fetch("http://localhost:5001/api/arbitrator/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      const payload = {
+        disputeId: dispute?.disputeId,
+        projectName: formData.projectName || "PayShield Project",
+        milestoneName: formData.milestoneName || "Milestone 1",
+        paymentAmount: formData.paymentAmount || "Escrow",
+        userRole: "client",
+        complaint: formData.clientComplaint || "",
+        workExpected: formData.expectedWork || "",
+        workDelivered: formData.workReceived || "",
+        evidenceNotes: `Client statement for milestone ${formData.milestoneName}`,
+      };
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Arbitrator service failed to analyze.");
-      }
+      const result = await api.arbitrateWithPrecedents(payload);
 
       navigate("/arbitration-result", {
         state: {
           formData,
-          aiDecision: data.aiDecision,
+          aiDecision: result.aiDecision,
+          suggestedSplit: result.suggestedSplit,
+          citedPrecedents: result.citedPrecedents,
+          confidenceScore: result.confidenceScore,
+          oracleSignature: result.oracleSignature,
         },
       });
     } catch (err) {
       console.error("AI Analysis error:", err);
-      setErrorMsg(err.message || "Failed to contact the AI Arbitrator service. Make sure backend is running on port 5001.");
+      setErrorMsg(err.message || "Failed to contact the AI Arbitrator service.");
     } finally {
       setLoading(false);
     }

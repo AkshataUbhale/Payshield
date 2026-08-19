@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Clock, DollarSign, Briefcase,
@@ -7,6 +7,7 @@ import {
 import Sidebar from "../../components/Sidebar";
 import SkillTag from "../../components/freelancers/SkillTag";
 import { daysLeft, formatUSDC } from "../../utils/helpers";
+import { getContract } from "../../services/api";
 
 const JOBS = {
   1: { id: 1, title: "React Developer Needed", budget: 500, skills: ["React", "Node.js", "TypeScript"],
@@ -31,8 +32,50 @@ We prefer candidates with strong TypeScript skills and experience with charting 
 export default function JobDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const job = JOBS[id] || JOBS[1];
+  const [job, setJob] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [applied, setApplied] = useState(false);
+
+  useEffect(() => {
+    if (JOBS[id]) {
+      setJob(JOBS[id]);
+      setLoading(false);
+      return;
+    }
+
+    const token = sessionStorage.getItem("ps_token");
+    getContract(id, token)
+      .then(data => {
+        setJob({
+          id: data.projectId,
+          title: data.title,
+          description: data.description,
+          budget: data.budget,
+          deadline: data.deadline,
+          status: data.status,
+          skills: data.skills || ["Solana", "Rust", "Web3"],
+          clientName: "Client " + (data.clientPubkey ? `${data.clientPubkey.slice(0, 6)}...${data.clientPubkey.slice(-4)}` : "Unknown"),
+          clientRating: 5.0,
+          contractsPosted: 1
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to load project:", err);
+        setJob(JOBS[1]);
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading || !job) {
+    return (
+      <div className="app-layout">
+        <Sidebar />
+        <div className="main-content" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "85vh" }}>
+          <div className="spinner" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-layout">
@@ -60,8 +103,8 @@ export default function JobDetails() {
                   <span className="badge badge-active">{job.status}</span>
                 </div>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-                  {job.skills.map(s => <SkillTag key={s} skill={s} size="md" />)}
+                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+                  {(job.skills || []).map(s => <SkillTag key={s} skill={s} size="md" />)}
                 </div>
 
                 <div style={{ whiteSpace: "pre-wrap", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>

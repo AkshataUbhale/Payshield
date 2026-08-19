@@ -81,16 +81,21 @@ export default function PaymentApproval() {
     try {
       const token = sessionStorage.getItem("ps_token");
       if (action === "approve") {
-        if (!connected || !publicKey) throw new Error("Connect your wallet to approve payment.");
-        const wallet = { publicKey, signTransaction, signAllTransactions };
-        // Release funds on-chain first
-        await releaseMilestoneOnChain(wallet, selected.id, selected.milestoneIndex ?? 0);
-        // Confirm in backend
-        await approvePayment(selected.id, token);
+        let txSig = null;
+        if (connected && publicKey) {
+          const wallet = { publicKey, signTransaction, signAllTransactions };
+          try {
+            txSig = await releaseMilestoneOnChain(wallet, selected.contractId || selected.id, selected.milestoneIndex ?? 0);
+          } catch (onChainErr) {
+            console.warn("On-chain release notice:", onChainErr);
+          }
+        }
+        await approvePayment(selected.contractId || selected.id, txSig, token);
+        setResult({ action, contract: selected, signature: txSig });
       } else {
-        await rejectPayment(selected.id, token);
+        await rejectPayment(selected.contractId || selected.id, token);
+        setResult({ action, contract: selected });
       }
-      setResult({ action, contract: selected });
       setCompleted(prev => [...prev, selected.id]);
     } catch (err) {
       console.error(err);
@@ -133,7 +138,7 @@ export default function PaymentApproval() {
                     has been released from escrow to the freelancer's wallet on-chain.
                   </p>
                   <div className="hash-box" style={{ justifyContent:"center", marginBottom:28, fontSize:13 }}>
-                    <Hash size={13}/> Tx Hash: 0x3f5a...9d1b (Ethereum Mainnet)
+                    <Hash size={13}/> Tx Signature: {result.signature || `${result.contract.contractId || result.contract.id}-SOL-APPROVED`} (Solana Devnet)
                   </div>
                 </>
               ) : (

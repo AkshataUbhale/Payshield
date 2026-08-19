@@ -20,7 +20,7 @@ const CHART = [
 
 export default function FreelancerPayments() {
   const navigate = useNavigate();
-  const { balance } = useWallet();
+  const { shortAddress } = useWallet();
 
   return (
     <div className="app-layout">
@@ -43,7 +43,7 @@ export default function FreelancerPayments() {
           {/* Stats */}
           <div className="grid-4 mb-8">
             {[
-              { label: "Available Balance",   value: `${balance || "420"} USDC`, color: "purple" },
+              { label: "Available Balance",   value: shortAddress ? "Check Phantom" : "Connect wallet", color: "purple" },
               { label: "This Month",          value: "$1,800",                   color: "green" },
               { label: "Lifetime Earnings",   value: "$7,380",                   color: "blue" },
               { label: "Pending Payouts",     value: "350 USDC",                 color: "amber" },

@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Wallet, FileText, TrendingUp, Briefcase,
@@ -11,42 +12,57 @@ import EarningsChart from "../../components/dashboard/EarningsChart";
 import JobCard from "../../components/jobs/JobCard";
 import { useAuth } from "../../hooks/useAuth";
 import { useWallet } from "../../hooks/useWallet";
+import { getContracts } from "../../services/api";
 
-const DEMO_JOBS = [
-  { id: 1, title: "React Developer Needed", budget: 500, skills: ["React", "Node.js", "TypeScript"],
-    deadline: "2026-03-25", status: "Open", clientName: "TechCorp Inc.", description: "Build a dashboard UI with React and Node backend. Responsive design required." },
-  { id: 2, title: "Solidity Smart Contract Dev", budget: 1200, skills: ["Solidity", "Ethereum", "Web3"],
-    deadline: "2026-04-01", status: "Open", clientName: "DeFi Labs", description: "Develop ERC-20 token contract with staking functionality." },
-  { id: 3, title: "UI/UX Designer for SaaS App", budget: 350, skills: ["Figma", "UI/UX", "Prototyping"],
-    deadline: "2026-03-20", status: "Open", clientName: "StartupHQ", description: "Design user flows and hi-fi mockups for a B2B SaaS dashboard." },
-];
-
-const DEMO_ACTIVITY = [
-  { type: "Job Applied",       desc: "React Developer at TechCorp",          time: "1h ago" },
-  { type: "Payment Released",  desc: "Web App Frontend — 450 USDC",          time: "5h ago" },
-  { type: "Work Submitted",    desc: "Mobile App UI Design via IPFS",         time: "1d ago" },
-  { type: "Contract Created",  desc: "Solidity Audit — DeFi Labs",           time: "2d ago" },
-];
+const DEMO_ACTIVITY = [];
 
 const CHART_DATA = [
-  { month: "Oct", amount: 800 },
-  { month: "Nov", amount: 1200 },
-  { month: "Dec", amount: 950 },
-  { month: "Jan", amount: 1600 },
-  { month: "Feb", amount: 1100 },
-  { month: "Mar", amount: 1800 },
+  { month: "Oct", amount: 0 },
+  { month: "Nov", amount: 0 },
+  { month: "Dec", amount: 0 },
+  { month: "Jan", amount: 0 },
+  { month: "Feb", amount: 0 },
+  { month: "Mar", amount: 0 },
 ];
 
 export default function FreelancerDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { shortAddr, balance } = useWallet();
+  const { shortAddress } = useWallet();
+  const [activeCount, setActiveCount] = useState(0);
+  const [recommendedJobs, setRecommendedJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("ps_token");
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    getContracts({ status: "in_progress" }, token)
+      .then(data => {
+        const list = data.projects ?? data;
+        setActiveCount(Array.isArray(list) ? list.length : 0);
+      })
+      .catch(err => console.error("Failed to load active contracts:", err));
+
+    getContracts({ status: "open" }, token)
+      .then(data => {
+        const list = data.projects ?? data;
+        if (Array.isArray(list)) {
+          setRecommendedJobs(list.slice(0, 3));
+        }
+      })
+      .catch(err => console.error("Failed to load open jobs:", err))
+      .finally(() => setLoading(false));
+  }, []);
 
   const stats = [
-    { label: "Wallet Balance",   value: `${balance || "420"} USDC`, icon: Wallet,     color: "purple", change: "+12%",          up: true  },
-    { label: "Active Contracts", value: "3",                         icon: FileText,   color: "blue",   change: "+1 this week",  up: true  },
-    { label: "Total Earned",     value: "$7,380",                   icon: TrendingUp,  color: "green",  change: "+$820/month",   up: true  },
-    { label: "Jobs Applied",     value: "12",                        icon: Briefcase,  color: "amber",  change: "4 pending",     up: true  },
+    { label: "Wallet",           value: shortAddress || "Not connected",               icon: Wallet,     color: "purple", change: "Solana Devnet",  up: true  },
+    { label: "Active Contracts", value: activeCount.toString(),                         icon: FileText,   color: "blue",   change: "Real-time count",  up: true  },
+    { label: "Total Earned",     value: "$0.00",                   icon: TrendingUp,  color: "green",  change: "Real-time earnings",   up: true  },
+    { label: "Jobs Applied",     value: "0",                        icon: Briefcase,  color: "amber",  change: "0 pending",     up: true  },
   ];
 
   return (
@@ -63,7 +79,7 @@ export default function FreelancerDashboard() {
             <NotificationBell />
             <div className="wallet-badge" id="wallet-badge-topbar" onClick={() => navigate("/wallet")}>
               <div className="wallet-dot" />
-              {shortAddr || `${wallet.slice(0,6)}...${wallet.slice(-4)}`}
+              {shortAddress || "Connect Wallet"}
             </div>
             <button id="btn-browse-jobs" className="btn btn-primary btn-sm" onClick={() => navigate("/freelancer/jobs")}>
               <Search size={14} /> Browse Jobs
@@ -128,9 +144,24 @@ export default function FreelancerDashboard() {
               </button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {DEMO_JOBS.map(job => (
-                <JobCard key={job.id} job={job} onClick={() => navigate(`/freelancer/job/${job.id}`)} />
-              ))}
+              {loading ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: "20px 0" }}>
+                  <div className="spinner" />
+                </div>
+              ) : recommendedJobs.length > 0 ? (
+                recommendedJobs.map(job => (
+                  <JobCard key={job.projectId} job={{
+                    ...job,
+                    id: job.projectId,
+                    skills: job.skills || ["Solana", "Web3"],
+                    clientName: "Client " + (job.clientPubkey ? `${job.clientPubkey.slice(0, 6)}...${job.clientPubkey.slice(-4)}` : "Unknown")
+                  }} onClick={() => navigate(`/freelancer/job/${job.projectId}`)} />
+                ))
+              ) : (
+                <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-secondary)", fontSize: 13 }}>
+                  No open jobs available on PayShield yet.
+                </div>
+              )}
             </div>
           </div>
 

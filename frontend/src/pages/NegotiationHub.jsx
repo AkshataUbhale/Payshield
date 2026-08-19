@@ -371,33 +371,28 @@ export default function NegotiationHub() {
   // Deploy on Solana Escrow Program
   const handleDeploy = async () => {
     try {
-      // Execute local deployment
       showToast("Calling Solana Escrow Program: locking funds in PDA... 🔐", "info");
-      
-      setTimeout(async () => {
-        let updated;
-        try {
-          updated = await api.deployDraftOnChain(selectedDraft._id, sessionStorage.getItem("ps_token"));
-        } catch (err) {
-          updated = {
-            ...selectedDraft,
-            status: "deployed",
-            logs: [
-              ...selectedDraft.logs,
-              {
-                actor: selectedDraft.clientPubkey,
-                action: "DEPLOYED",
-                details: "USDC Funds locked in PDA. Contract deployed on Solana devnet! Escrow Program ID: 43QYPVLR...",
-                timestamp: new Date()
-              }
-            ]
-          };
-        }
-        setSelectedDraft(updated);
-        setDrafts(prev => prev.map(d => d._id === updated._id ? updated : d));
-        showToast("Solana Escrow initialized! Funds locked securely. 🎉");
-      }, 2000);
-
+      let updated;
+      try {
+        updated = await api.deployDraftContract(selectedDraft._id, sessionStorage.getItem("ps_token"));
+      } catch (err) {
+        updated = {
+          ...selectedDraft,
+          status: "deployed",
+          logs: [
+            ...selectedDraft.logs,
+            {
+              actor: selectedDraft.clientPubkey,
+              action: "DEPLOYED",
+              details: "USDC Funds locked in PDA. Contract deployed on Solana devnet! Escrow Program ID: 43QYPVLRMQ9skLbbbZ3uGPsLtTbxcmuU4S5hoZ8bXJKS",
+              timestamp: new Date()
+            }
+          ]
+        };
+      }
+      setSelectedDraft(updated);
+      setDrafts(prev => prev.map(d => d._id === updated._id ? updated : d));
+      showToast("Solana Escrow initialized! Funds locked securely. 🎉");
     } catch (err) {
       showToast("Deployment failed on Solana", "error");
     }

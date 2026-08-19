@@ -6,7 +6,7 @@ import { SolanahubProtocol } from "./solanahub_protocol";
 import solanahubJson from "./solanahub_protocol.json";
 
 const PROGRAM_ID = new PublicKey(
-  "H4R1nUBp4Gfuw9uPZwfrKyTVgP3TrQ2RzMD1puWjqYsY",
+  "43QYPVLRMQ9skLbbbZ3uGPsLtTbxcmuU4S5hoZ8bXJKS",
 );
 
 export const useSolanaHubProgram = () => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   DollarSign, FileText, Users, TrendingUp,
@@ -12,45 +12,53 @@ import FreelancerCard from "../../components/freelancers/FreelancerCard";
 import EscrowStatus from "../../components/contracts/EscrowStatus";
 import { useAuth } from "../../hooks/useAuth";
 import { useWallet } from "../../hooks/useWallet";
+import { getContracts, getFreelancers } from "../../services/api";
 
-const DEMO_FREELANCERS = [
-  { id: "f1", name: "Alex Johnson",    skills: ["React","Node.js","TypeScript"], rating: 4.9, hourlyRate: 45, completedJobs: 34,
-    bio: "Full-stack developer specializing in React and blockchain integrations.", location: "USA" },
-  { id: "f2", name: "Priya Sharma",    skills: ["Solidity","Web3","Ethereum"],    rating: 4.7, hourlyRate: 60, completedJobs: 22,
-    bio: "Smart contract developer with 3 years of DeFi and NFT experience.", location: "India" },
-  { id: "f3", name: "Carlos Rivera",   skills: ["Figma","UI/UX","Prototyping"],   rating: 4.8, hourlyRate: 35, completedJobs: 51,
-    bio: "UI/UX designer crafting delightful, conversion-focused digital experiences.", location: "Spain" },
-];
-
-const DEMO_ACTIVITY = [
-  { type: "Freelancer Hired",  desc: "Alex Johnson for React Dashboard",  time: "2h ago" },
-  { type: "Escrow Locked",     desc: "Logo Design — 200 USDC locked",     time: "4h ago" },
-  { type: "Payment Released",  desc: "Web App Frontend — 450 USDC sent",  time: "1d ago" },
-  { type: "Dispute Raised",    desc: "SEO Audit Project #C008",           time: "2d ago" },
-];
-
-const ESCROW_CONTRACTS = [
-  { id: "C001", freelancer: "Alex Johnson",  amount: 500,  status: "Active" },
-  { id: "C002", freelancer: "Priya Sharma",  amount: 1200, status: "Escrow Locked" },
-  { id: "C003", freelancer: "Carlos Rivera", amount: 200,  status: "Submitted" },
-];
+const DEMO_ACTIVITY = [];
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { shortAddr, balance } = useWallet();
-  const [wallet] = useState("0xB2C3D4E5F6789012BCDEF1234567890ABCDEF1234");
+  const { shortAddress } = useWallet();
+  const [contracts, setContracts] = useState([]);
+  const [freelancers, setFreelancers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("ps_token");
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    getContracts({ clientPubkey: user?.walletAddress }, token)
+      .then(data => {
+        setContracts(data.projects ?? data ?? []);
+      })
+      .catch(err => console.error("Failed to load client projects:", err));
+
+    getFreelancers(token)
+      .then(data => {
+        setFreelancers(data ?? []);
+      })
+      .catch(err => console.error("Failed to load freelancers:", err))
+      .finally(() => setLoading(false));
+  }, [user?.walletAddress]);
+
+  const activeContracts = contracts.filter(c => c.status === "in_progress");
+  const totalSpent = contracts.reduce((acc, c) => acc + (c.budget || 0), 0);
+  const uniqueFreelancers = new Set(contracts.map(c => c.freelancerPubkey).filter(Boolean)).size;
 
   const stats = [
-    { label: "Total Spent",        value: "$12,400",  icon: DollarSign,  color: "purple", change: "+$2.1K this month", up: true  },
-    { label: "Active Contracts",   value: "5",        icon: FileText,    color: "blue",   change: "+2 this week",     up: true  },
-    { label: "Freelancers Hired",  value: "18",       icon: Users,       color: "green",  change: "+3 this month",    up: true  },
-    { label: "Jobs Posted",        value: "24",       icon: TrendingUp,  color: "amber",  change: "6 active",         up: true  },
+    { label: "Total Committed",    value: `${totalSpent} USDC`,  icon: DollarSign,  color: "purple", change: "On-chain escrow value", up: true  },
+    { label: "Active Contracts",   value: activeContracts.length.toString(),  icon: FileText,    color: "blue",   change: "In progress projects",     up: true  },
+    { label: "Freelancers Hired",  value: uniqueFreelancers.toString(),       icon: Users,       color: "green",  change: "Unique freelancers hired",    up: true  },
+    { label: "Jobs Posted",        value: contracts.length.toString(),       icon: TrendingUp,  color: "amber",  change: "Total posted escrows",         up: true  },
   ];
 
   return (
     <div className="app-layout">
-      <Sidebar walletAddress={wallet} />
+      <Sidebar walletAddress={user?.walletAddress || shortAddress} />
       <div className="main-content">
         {/* Topbar */}
         <div className="topbar">
@@ -62,7 +70,7 @@ export default function ClientDashboard() {
             <NotificationBell />
             <div className="wallet-badge" onClick={() => navigate("/wallet")}>
               <div className="wallet-dot" />
-              {shortAddr || `${wallet.slice(0,6)}...${wallet.slice(-4)}`}
+              {shortAddress || "Connect Wallet"}
             </div>
             <button id="btn-post-job" className="btn btn-primary btn-sm" onClick={() => navigate("/client/post-job")}>
               <PlusCircle size={14} /> Post a Job
@@ -89,10 +97,29 @@ export default function ClientDashboard() {
                 </button>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {DEMO_FREELANCERS.map(f => (
-                  <FreelancerCard key={f.id} freelancer={f}
-                    onClick={() => navigate(`/client/hire/${f.id}`)} />
-                ))}
+                {loading ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "20px 0" }}>
+                    <div className="spinner" />
+                  </div>
+                ) : freelancers.length > 0 ? (
+                  freelancers.slice(0, 3).map(f => (
+                    <FreelancerCard key={f.publicKey} freelancer={{
+                      id: f.publicKey,
+                      name: f.username || "Freelancer",
+                      skills: f.skills || ["Solana", "Web3"],
+                      rating: 5.0,
+                      hourlyRate: f.hourlyRate || 40,
+                      completedJobs: 1,
+                      bio: f.bio || "Solana Web3 developer ready to build.",
+                      location: "Remote"
+                    }}
+                      onClick={() => navigate(`/client/hire/${f.publicKey}`)} />
+                  ))
+                ) : (
+                  <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-secondary)", fontSize: 13 }}>
+                    No registered freelancers found.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -107,21 +134,33 @@ export default function ClientDashboard() {
                   </button>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {ESCROW_CONTRACTS.map(c => (
-                    <div key={c.id} style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "10px 0", borderBottom: "1px solid var(--border)"
-                    }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{c.freelancer}</div>
-                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Contract #{c.id}</div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-green)" }}>{c.amount} USDC</div>
-                        <EscrowStatus status={c.status} />
-                      </div>
+                  {loading ? (
+                    <div style={{ display: "flex", justifyContent: "center", padding: "20px 0" }}>
+                      <div className="spinner" />
                     </div>
-                  ))}
+                  ) : contracts.length > 0 ? (
+                    contracts.slice(0, 3).map(c => (
+                      <div key={c.projectId} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "10px 0", borderBottom: "1px solid var(--border)"
+                      }} onClick={() => navigate(`/contract/${c.projectId}`)}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600 }}>{c.title}</div>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                            {c.freelancerPubkey ? `Freelancer: ${c.freelancerPubkey.slice(0,6)}...${c.freelancerPubkey.slice(-4)}` : "Unassigned"}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-green)" }}>{c.budget} USDC</div>
+                          <EscrowStatus status={c.status} />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-secondary)", fontSize: 13 }}>
+                      No active escrow contracts yet.
+                    </div>
+                  )}
                 </div>
               </div>
 

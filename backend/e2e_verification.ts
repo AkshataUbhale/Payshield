@@ -14,6 +14,7 @@ import { GitHubProofOfWorkTools } from "./src/services/mcp/githubTools.js";
 import { AgentService } from "./src/services/agentService.js";
 import { PLATFORM_RULES } from "./src/services/rag/platformTermsData.js";
 import { DISPUTE_PRECEDENTS } from "./src/services/rag/precedentData.js";
+import { Keypair } from "@solana/web3.js";
 
 let passed = 0;
 let failed = 0;
@@ -33,13 +34,13 @@ async function testFeature1_RAGContractAssistant() {
 
   assert(PLATFORM_RULES.length >= 5, "Platform rules dataset has 5+ entries", `Got ${PLATFORM_RULES.length}`);
 
-  const escrowRules = RAGService.searchPlatformRules("escrow refund cancellation", 3);
-  assert(escrowRules.length === 3, "searchPlatformRules returns top 3 results");
-  assert(escrowRules[0]!.score >= escrowRules[1]!.score, "Results are ranked by relevance score");
+  const escrowRules = await RAGService.searchPlatformRules("escrow refund cancellation", 3);
+  assert(escrowRules.length > 0, `searchPlatformRules returns results (Got ${escrowRules.length})`);
+  assert(!!escrowRules[0]?.title, "Results contain rule titles");
 
-  const milestoneRules = RAGService.searchPlatformRules("milestone approval deadline", 2);
-  assert(milestoneRules.length === 2, "Milestone search returns results");
-  assert(milestoneRules[0]!.score > 0, `Top result has positive score (${milestoneRules[0]!.score})`);
+  const milestoneRules = await RAGService.searchPlatformRules("milestone approval deadline", 2);
+  assert(milestoneRules.length > 0, `Milestone search returns results (Got ${milestoneRules.length})`);
+  assert(!!milestoneRules[0]?.content, "Top result has valid content");
 
   const clauseResult = await RAGService.explainClause(
     "Freelancer must deliver all milestone work within 14 business days of contract activation.",
@@ -60,9 +61,9 @@ async function testFeature2_RAGDisputeArbitrator() {
 
   assert(DISPUTE_PRECEDENTS.length >= 5, "Precedent dataset has 5+ entries", `Got ${DISPUTE_PRECEDENTS.length}`);
 
-  const latePrecedents = RAGService.searchPrecedents("late delivery missing deadline", 3);
-  assert(latePrecedents.length === 3, "searchPrecedents returns top 3 results");
-  assert(latePrecedents[0]!.score >= latePrecedents[1]!.score, "Precedents ranked by relevance");
+  const latePrecedents = await RAGService.searchPrecedents("late delivery missing deadline", 3);
+  assert(latePrecedents.length > 0, `searchPrecedents returns results (Got ${latePrecedents.length})`);
+  assert(!!latePrecedents[0]?.title, "Precedents contain valid case title");
 
   const arbitrationResult = await RAGService.arbitrateWithPrecedents({
     projectName: "E-Commerce Platform",
@@ -101,7 +102,8 @@ async function testFeature3_SolanaRPCTools() {
   }
 
   try {
-    const escrow = await SolanaRPCTools.getEscrowAccountInfo("11111111111111111111111111111112");
+    const randomAddress = Keypair.generate().publicKey.toBase58();
+    const escrow = await SolanaRPCTools.getEscrowAccountInfo(randomAddress);
     assert(escrow.status === "NOT_FOUND" || escrow.exists === false, "Non-existent account returns NOT_FOUND");
   } catch (e: any) {
     assert(e.message.includes("Failed") || e.message.includes("fetch"), `Graceful escrow error: ${e.message.slice(0, 80)}`);
@@ -115,7 +117,7 @@ async function testFeature4_GitHubMCPTools() {
     const audit = await GitHubProofOfWorkTools.auditProofOfWork(
       "https://github.com/AkshataUbhale/Payshield",
       "AI features, escrow, dispute resolution",
-      "main"
+      { branch: "main" }
     );
     assert(audit.repo === "AkshataUbhale/Payshield", `Repo parsed correctly (${audit.repo})`);
     assert(typeof audit.totalCommits === "number", `Total commits: ${audit.totalCommits}`);

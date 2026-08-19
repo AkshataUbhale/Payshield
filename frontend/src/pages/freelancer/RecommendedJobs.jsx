@@ -5,20 +5,7 @@ import Sidebar from "../../components/Sidebar";
 import NotificationBell from "../../components/common/NotificationBell";
 import JobFilter from "../../components/jobs/JobFilter";
 import JobCard from "../../components/jobs/JobCard";
-import { getRecommendedJobs } from "../../services/api";
-
-// Demo fallback when backend is offline
-const DEMO_JOBS = [
-  { id: 1, title: "React Developer Needed", budget: 500, skills: ["React", "Node.js", "TypeScript"],
-    deadline: "2026-03-25", status: "Open", clientName: "TechCorp Inc.",
-    description: "Build a responsive dashboard UI with React and a Node.js backend API." },
-  { id: 2, title: "Solidity Smart Contract Dev", budget: 1200, skills: ["Solidity", "Ethereum", "Web3", "DeFi"],
-    deadline: "2026-04-01", status: "Open", clientName: "DeFi Labs",
-    description: "Develop ERC-20 token contract with vesting and multi-sig capabilities." },
-  { id: 3, title: "UI/UX Designer for SaaS", budget: 350, skills: ["Figma", "UI/UX", "Prototyping"],
-    deadline: "2026-03-20", status: "Open", clientName: "StartupHQ",
-    description: "Design user flows and high-fidelity mockups for a B2B SaaS product." },
-];
+import { getRecommendedJobs, getOpenProjects } from "../../services/api";
 
 export default function RecommendedJobs() {
   const navigate = useNavigate();
@@ -27,21 +14,77 @@ export default function RecommendedJobs() {
   const [search, setSearch]     = useState("");
   const [filterState, setFilterState] = useState({ skills: [], budget: { min: 0, max: Infinity } });
 
-  // Fetch AI-recommended jobs from backend
+  // Fetch AI-recommended and open jobs from backend
   useEffect(() => {
     const token = sessionStorage.getItem("ps_token");
     getRecommendedJobs(token)
-      .then(data => setJobs(data.recommendations?.map(r => ({ ...r.project, matchScore: r.matchScore, matchedSkills: r.matchedSkills })) ?? data))
-      .catch(() => setJobs(DEMO_JOBS))
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped = data.map(item => {
+            if (item.project) {
+              return {
+                id: item.project.id || item.project.projectId || item.project._id,
+                title: item.project.title,
+                description: item.project.description,
+                budget: item.project.budget,
+                deadline: item.project.deadline,
+                clientPubkey: item.project.clientPubkey,
+                status: item.project.status,
+                skills: item.matchedSkills || item.project.skills || [],
+                matchScore: item.matchScore,
+                clientName: "Client " + (item.project.clientPubkey ? `${item.project.clientPubkey.slice(0, 6)}...${item.project.clientPubkey.slice(-4)}` : "Unknown")
+              };
+            }
+            return { ...item, skills: item.skills || [] };
+          });
+          setJobs(mapped);
+        } else {
+          // Fallback to open projects list from MongoDB
+          return getOpenProjects(token).then(openData => {
+            const list = Array.isArray(openData) ? openData : [];
+            const mapped = list.map(p => ({
+              id: p.projectId || p._id,
+              title: p.title,
+              description: p.description,
+              budget: p.budget,
+              deadline: p.deadline,
+              clientPubkey: p.clientPubkey,
+              status: p.status,
+              skills: p.skills || [],
+              clientName: "Client " + (p.clientPubkey ? `${p.clientPubkey.slice(0, 6)}...${p.clientPubkey.slice(-4)}` : "Unknown")
+            }));
+            setJobs(mapped);
+          });
+        }
+      })
+      .catch(() => {
+        getOpenProjects(token)
+          .then(openData => {
+            const list = Array.isArray(openData) ? openData : [];
+            const mapped = list.map(p => ({
+              id: p.projectId || p._id,
+              title: p.title,
+              description: p.description,
+              budget: p.budget,
+              deadline: p.deadline,
+              clientPubkey: p.clientPubkey,
+              status: p.status,
+              skills: p.skills || [],
+              clientName: "Client " + (p.clientPubkey ? `${p.clientPubkey.slice(0, 6)}...${p.clientPubkey.slice(-4)}` : "Unknown")
+            }));
+            setJobs(mapped);
+          })
+          .catch(() => setJobs([]));
+      })
       .finally(() => setLoading(false));
   }, []);
 
   const filtered = jobs.filter(job => {
     const matchSearch = job.title?.toLowerCase().includes(search.toLowerCase()) ||
-      job.skills?.some(s => s.toLowerCase().includes(search.toLowerCase()));
+      (job.skills || []).some(s => s.toLowerCase().includes(search.toLowerCase()));
     const matchBudget = job.budget >= filterState.budget.min && job.budget <= filterState.budget.max;
     const matchSkills = filterState.skills.length === 0 ||
-      filterState.skills.some(s => job.skills?.map(x => x.toLowerCase()).includes(s.toLowerCase()));
+      filterState.skills.some(s => (job.skills || []).map(x => x.toLowerCase()).includes(s.toLowerCase()));
     return matchSearch && matchBudget && matchSkills;
   });
 
@@ -52,7 +95,7 @@ export default function RecommendedJobs() {
         <div className="topbar">
           <div className="topbar-left">
             <span className="topbar-title">Browse Jobs</span>
-            <span className="topbar-breadcrumb">{ALL_JOBS.length} available jobs on PayShield</span>
+            <span className="topbar-breadcrumb">{jobs.length} available jobs on PayShield</span>
           </div>
           <div className="topbar-right">
             <NotificationBell />
@@ -80,7 +123,7 @@ export default function RecommendedJobs() {
 
           {/* Results */}
           <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
-            Showing <strong style={{ color: "var(--text-primary)" }}>{filtered.length}</strong> of {ALL_JOBS.length} jobs
+            Showing <strong style={{ color: "var(--text-primary)" }}>{filtered.length}</strong> of {jobs.length} jobs
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

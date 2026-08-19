@@ -85,3 +85,5 @@ export const DISPUTE_PRECEDENTS: DisputePrecedent[] = [
     keywords: ["misunderstanding", "ambiguous", "good faith", "split", "50/50", "mutual fault"]
   }
 ];
+
+export const historicalPrecedents = DISPUTE_PRECEDENTS;

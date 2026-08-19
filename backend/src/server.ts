@@ -13,17 +13,28 @@ import draftContractRoutes from "./routes/draftContractRoutes.js";
 import submissionRoutes from "./routes/submissionRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import { startSolanaWatcher } from "./services/solanaWatcher.js";
+import { RAGService } from "./services/rag/ragService.js";
 
 dotenv.config();
 
 const app: Express = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // Connect to Database
 connectDB();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow all localhost origins (Vite uses 5173 by default, backend 3001)
+    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS: origin not allowed"));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // Routes
@@ -39,7 +50,7 @@ app.use("/api/submissions", submissionRoutes);
 app.use("/api/payments", paymentRoutes);
 
 // Services
-// startSolanaWatcher();
+startSolanaWatcher();
 
 // Health Check
 app.get("/health", (req: Request, res: Response) => {
@@ -67,7 +78,12 @@ async function start() {
     console.log("✅ Solana connected");
 
     // Start Solana Watcher if needed
-    // startSolanaWatcher();
+    startSolanaWatcher();
+
+    // Initialize RAG Vector Search & Embeddings
+    RAGService.initializeKnowledge().catch((err: any) =>
+      console.warn("RAG knowledge initialization background warning:", err)
+    );
 
     app.listen(PORT, () => {
       console.log(`✅ Server running on http://localhost:${PORT}`);

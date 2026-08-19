@@ -4,6 +4,7 @@ import {
   updateProfile,
   createUser,
   getUserByPublicKey,
+  getFreelancers,
 } from "../controllers/userController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
@@ -13,6 +14,7 @@ router.post("/", createUser);
 
 router.get("/profile", authMiddleware, getProfile);
 router.put("/update", authMiddleware, updateProfile);
+router.get("/freelancers", getFreelancers);
 router.get("/:publicKey", getUserByPublicKey);
 
 export default router;

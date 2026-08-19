@@ -3,48 +3,62 @@ import { type AuthRequest } from "../middleware/authMiddleware.js";
 import Submission from "../models/Submission.js";
 import Project from "../models/Project.js";
 
-// @desc    Approve milestone payment
+// @desc    Approve milestone payment and record Solana on-chain tx signature
 // @route   POST /api/payments/approve
 // @access  Private (Client)
 export const approvePayment = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const { contractId } = req.body;
+    const { contractId, projectId: incomingProjectId, txSignature, signature } = req.body;
     const clientPubkey = req.user.id;
+    const targetId = contractId || incomingProjectId;
 
-    if (!contractId) {
-      res.status(400).json({ message: "Contract ID is required" });
+    if (!targetId) {
+      res.status(400).json({ message: "Contract ID / Project ID is required" });
       return;
     }
 
     // Check project contract
-    const project = await Project.findOne({ projectId: contractId });
+    let project = await Project.findOne({ projectId: targetId });
+    if (!project && targetId.match(/^[0-9a-fA-F]{24}$/)) {
+      project = await Project.findById(targetId);
+    }
+
     if (!project) {
       res.status(404).json({ message: "Project contract not found" });
       return;
     }
 
     if (project.clientPubkey !== clientPubkey) {
-      res.status(403).json({ message: "Not authorized to approve this payment" });
+      res.status(403).json({ message: "Not authorized to approve payment for this project" });
       return;
     }
 
-    // Update Project Status
+    const onChainTx = txSignature || signature;
+
+    // Update Project Status and record on-chain tx hash
     project.status = "completed";
+    if (onChainTx) {
+      project.txSignature = onChainTx;
+    }
     await project.save();
 
     // Mark submission status as approved
     await Submission.findOneAndUpdate(
-      { projectId: contractId, status: "pending" },
-      { status: "approved" }
+      { projectId: project.projectId, status: "pending" },
+      { status: "approved" },
     );
 
-    res.status(200).json({ message: "Payment approved successfully", project });
-  } catch (error) {
+    res.status(200).json({
+      message: "Payment approved and recorded on-chain successfully",
+      project,
+      txSignature: onChainTx,
+    });
+  } catch (error: any) {
     console.error("Error approving payment:", error);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: error.message || "Server Error" });
   }
 };
 
@@ -53,37 +67,42 @@ export const approvePayment = async (
 // @access  Private (Client)
 export const rejectPayment = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const { contractId } = req.body;
+    const { contractId, projectId: incomingProjectId } = req.body;
     const clientPubkey = req.user.id;
+    const targetId = contractId || incomingProjectId;
 
-    if (!contractId) {
+    if (!targetId) {
       res.status(400).json({ message: "Contract ID is required" });
       return;
     }
 
-    const project = await Project.findOne({ projectId: contractId });
+    let project = await Project.findOne({ projectId: targetId });
+    if (!project && targetId.match(/^[0-9a-fA-F]{24}$/)) {
+      project = await Project.findById(targetId);
+    }
+
     if (!project) {
       res.status(404).json({ message: "Project contract not found" });
       return;
     }
 
     if (project.clientPubkey !== clientPubkey) {
-      res.status(403).json({ message: "Not authorized to reject this payment" });
+      res.status(403).json({ message: "Not authorized to reject payment for this project" });
       return;
     }
 
     // Mark submission status as rejected
     await Submission.findOneAndUpdate(
-      { projectId: contractId, status: "pending" },
-      { status: "rejected" }
+      { projectId: project.projectId, status: "pending" },
+      { status: "rejected" },
     );
 
     res.status(200).json({ message: "Payment rejected successfully" });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error rejecting payment:", error);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: error.message || "Server Error" });
   }
 };

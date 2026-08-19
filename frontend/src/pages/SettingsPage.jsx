@@ -138,7 +138,7 @@ export default function SettingsPage() {
                   <div className="divider" />
                   <div style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)",
                     borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "var(--text-secondary)" }}>
-                    🔒 Your wallet signing keys are never stored by PayShield. Only your MetaMask holds them.
+                    🔒 Your wallet signing keys are never stored by PayShield. Only your Phantom wallet holds them.
                   </div>
                 </>
               )}

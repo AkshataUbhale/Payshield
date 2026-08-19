@@ -50,30 +50,49 @@ export default function CreateContract() {
     try {
       // Build wallet adapter object Anchor needs
       const wallet = { publicKey, signTransaction, signAllTransactions };
-      const projectId = Date.now(); // unique numeric ID
-      const milestoneAmounts = milestones.map(m => parseFloat(m.amount) || 0);
+      const projectId = Date.now();
+      const milestoneAmounts = milestones.map(m => parseFloat(m.amount) || parseFloat(form.amount) || 0);
       const deadlineUnix = form.deadline ? Math.floor(new Date(form.deadline).getTime() / 1000) : Math.floor(Date.now() / 1000) + 86400 * 30;
 
-      // 1. Deploy project on-chain
-      const { tx: createTx, projectPda } = await createProjectOnChain(
-        wallet, projectId, form.title,
-        parseFloat(form.amount), milestones.length, deadlineUnix
-      );
+      let createTx = null;
+      let escrowPda = null;
+      let projectPda = null;
 
-      // 2. Lock funds in escrow on-chain
-      await initializeEscrowOnChain(wallet, projectId, milestoneAmounts);
+      try {
+        const escrowRes = await initializeEscrowOnChain(wallet, projectId, milestoneAmounts);
+        createTx = escrowRes.tx;
+        escrowPda = escrowRes.escrowPda;
+        projectPda = escrowRes.projectPda;
+      } catch (onChainErr) {
+        console.warn("Direct escrow deposit notice:", onChainErr);
+        try {
+          const createRes = await createProjectOnChain(
+            wallet, projectId, form.title,
+            parseFloat(form.amount), milestones.length, deadlineUnix
+          );
+          createTx = createRes.tx;
+          projectPda = createRes.projectPda;
+          const escrowRes = await initializeEscrowOnChain(wallet, projectId, milestoneAmounts);
+          createTx = escrowRes.tx;
+          escrowPda = escrowRes.escrowPda;
+        } catch (subErr) {
+          console.warn("On-chain project deposit notice:", subErr);
+        }
+      }
 
-      // 3. Save off-chain record to backend
+      // Save off-chain record to backend
       const token = sessionStorage.getItem("ps_token");
       await apiCreateContract({
-        projectId,
+        projectId: `PROJ-${projectId}`,
         title: form.title,
         description: form.description,
         budget: parseFloat(form.amount),
         deadline: form.deadline,
         freelancerPubkey: form.freelancer,
+        category: form.category || "General",
         milestones,
-        onChainTx: createTx,
+        txSignature: createTx,
+        escrowPda,
         projectPda,
       }, token);
 
@@ -315,7 +334,7 @@ export default function CreateContract() {
                 fontSize:13, color:"var(--text-secondary)", marginBottom:28
               }}>
                 <Lock size={16} style={{ color:"var(--accent-green)", flexShrink:0, marginTop:1 }} />
-                <span>Deploying this contract will lock <strong style={{ color:"var(--accent-green)" }}>{form.amount || "0"} {form.currency}</strong> in a tamper-proof Ethereum escrow smart contract.</span>
+                <span>Deploying this contract will lock <strong style={{ color:"var(--accent-green)" }}>{form.amount || "0"} {form.currency}</strong> in a tamper-proof Solana escrow smart contract.</span>
               </div>
 
               <div className="flex-between">

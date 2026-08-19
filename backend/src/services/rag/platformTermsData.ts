@@ -50,3 +50,5 @@ export const PLATFORM_RULES: PlatformRuleDoc[] = [
     keywords: ["ghosting", "unresponsive", "communication", "default", "penalty", "blackout"]
   }
 ];
+
+export const platformTerms = PLATFORM_RULES;

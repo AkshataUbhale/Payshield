@@ -96,7 +96,7 @@ const STEPS = [
   {
     n: 1, emoji: "🔐",
     title: "Connect Wallet",
-    desc: "Link your MetaMask or compatible Web3 wallet in one click. No signups needed — your keys, your control."
+    desc: "Link your Phantom or Solflare Solana wallet in one click. No signups needed — your keys, your control.",
   },
   {
     n: 2, emoji: "📝",
@@ -315,22 +315,8 @@ const STATS = [
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [connecting, setConnecting] = useState(false);
-
-  const handleConnectWallet = async () => {
-    setConnecting(true);
-    try {
-      if (window.ethereum) {
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        setTimeout(() => navigate("/dashboard"), 800);
-      } else {
-        alert("MetaMask not detected. Please install MetaMask extension.");
-        setConnecting(false);
-      }
-    } catch {
-      setConnecting(false);
-    }
-  };
+  // Navigate to login page — real wallet connection happens there via Solana adapter
+  const handleConnectWallet = () => navigate("/login");
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-primary)", position: "relative", overflowX: "hidden" }}>
@@ -366,9 +352,8 @@ export default function LandingPage() {
             id="btn-nav-connect"
             className="btn btn-primary btn-sm"
             onClick={handleConnectWallet}
-            disabled={connecting}
           >
-            {connecting ? <span className="spinner" /> : <><Shield size={14} /> Connect Wallet</>}
+            <Shield size={14} /> Connect Wallet
           </button>
         </div>
       </nav>
@@ -432,7 +417,7 @@ export default function LandingPage() {
               boxShadow: "0 0 8px rgba(16,185,129,0.7)",
               display: "inline-block"
             }} />
-            Powered by Ethereum Smart Contracts
+            Powered by Solana Smart Contracts
           </div>
 
           <h1 style={{
@@ -458,11 +443,8 @@ export default function LandingPage() {
               id="btn-hero-connect"
               className="btn btn-primary btn-lg"
               onClick={handleConnectWallet}
-              disabled={connecting}
             >
-              {connecting
-                ? <><span className="spinner" /> Connecting…</>
-                : <><Shield size={18} /> Connect Wallet</>}
+              <Shield size={18} /> Connect Wallet
             </button>
             <button
               id="btn-hero-login"
@@ -521,7 +503,7 @@ export default function LandingPage() {
               Why <span className="gradient-text">PayShield</span>?
             </h2>
             <p style={{ fontSize: 16, color: "var(--text-secondary)", maxWidth: 500, margin: "0 auto" }}>
-              Built on Ethereum with IPFS storage. Everything is verifiable, decentralized, and trustless.
+              Built on Solana with IPFS storage. Everything is verifiable, decentralized, and trustless.
             </p>
           </div>
 

@@ -12,7 +12,9 @@ export interface IAIResolution {
   splitPercentageClient: number;
   confidenceScore: number;
   rationale: string;
-  resolvedAt?: Date;
+  oracleSignature?: string | undefined;
+  oraclePubkey?: string | undefined;
+  resolvedAt?: Date | undefined;
 }
 
 export interface IDispute extends Document {
@@ -56,6 +58,8 @@ const DisputeSchema: Schema = new Schema(
       splitPercentageClient: { type: Number, default: 0 },
       confidenceScore: { type: Number, default: 0 },
       rationale: { type: String },
+      oracleSignature: { type: String },
+      oraclePubkey: { type: String },
       resolvedAt: { type: Date },
     },
     auditLog: { type: [String], default: [] },

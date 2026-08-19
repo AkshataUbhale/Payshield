@@ -3,23 +3,28 @@ import { type AuthRequest } from "../middleware/authMiddleware.js";
 import Submission from "../models/Submission.js";
 import Project from "../models/Project.js";
 
-// @desc    Submit work (IPFS upload hash)
+// @desc    Submit work (IPFS CID / deliverable notes)
 // @route   POST /api/submissions
 // @access  Private (Freelancer)
 export const createSubmission = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const { contractId, ipfsHash, note, fileCount = 1 } = req.body;
+    const { contractId, projectId: incomingProjectId, ipfsHash, note, fileCount = 1 } = req.body;
     const freelancerPubkey = req.user.id;
+    const targetProjectId = contractId || incomingProjectId;
 
-    if (!contractId || !ipfsHash) {
-      res.status(400).json({ message: "Contract ID and IPFS Hash are required" });
+    if (!targetProjectId || !ipfsHash) {
+      res.status(400).json({ message: "Project Contract ID and IPFS CID / Deliverable Hash are required" });
       return;
     }
 
-    const project = await Project.findOne({ projectId: contractId });
+    let project = await Project.findOne({ projectId: targetProjectId });
+    if (!project && targetProjectId.match(/^[0-9a-fA-F]{24}$/)) {
+      project = await Project.findById(targetProjectId);
+    }
+
     if (!project) {
       res.status(404).json({ message: "Project contract not found" });
       return;
@@ -27,22 +32,23 @@ export const createSubmission = async (
 
     // Save submission
     const submission = new Submission({
-      projectId: contractId,
+      projectId: project.projectId,
       freelancerPubkey,
       ipfsHash,
-      note,
-      fileCount,
+      note: note || "",
+      fileCount: Number(fileCount) || 1,
       status: "pending",
     });
 
     await submission.save();
 
-    // Mark project status as submitted/in_progress or handled accordingly
-    // For demo/simplicity, we just record the submission
-    res.status(201).json(submission);
-  } catch (error) {
+    res.status(201).json({
+      message: "Deliverable submitted successfully for client review",
+      submission,
+    });
+  } catch (error: any) {
     console.error("Error creating submission:", error);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: error.message || "Server Error" });
   }
 };
 
@@ -51,25 +57,25 @@ export const createSubmission = async (
 // @access  Private
 export const getSubmissions = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userPubkey = req.user.id;
 
     // Retrieve submissions either assigned to client projects or uploaded by freelancer
     const clientProjects = await Project.find({ clientPubkey: userPubkey });
-    const projectIds = clientProjects.map(p => p.projectId);
+    const projectIds = clientProjects.map((p) => p.projectId);
 
     const submissions = await Submission.find({
       $or: [
         { freelancerPubkey: userPubkey },
-        { projectId: { $in: projectIds } }
-      ]
+        { projectId: { $in: projectIds } },
+      ],
     }).sort({ createdAt: -1 });
 
     // Map fields to match UI expectations in frontend
-    const mapped = submissions.map(sub => {
-      const proj = clientProjects.find(p => p.projectId === sub.projectId);
+    const mapped = submissions.map((sub) => {
+      const proj = clientProjects.find((p) => p.projectId === sub.projectId);
       return {
         id: sub._id,
         contractId: sub.projectId,
@@ -80,17 +86,18 @@ export const getSubmissions = async (
         ipfsHash: sub.ipfsHash,
         submittedAt: new Date(sub.createdAt).toLocaleString(),
         note: sub.note,
-        files: Array.from({ length: sub.fileCount }).map((_, i) => ({
+        status: sub.status,
+        files: Array.from({ length: sub.fileCount || 1 }).map((_, i) => ({
           name: `deliverable_${i + 1}.zip`,
           size: "4.5 MB",
-          type: "Archive"
-        }))
+          type: "Archive",
+        })),
       };
     });
 
     res.status(200).json(mapped);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching submissions:", error);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: error.message || "Server Error" });
   }
 };

@@ -328,7 +328,7 @@ export const addDisputeMessage = async (
   }
 };
 
-// @desc    Run AI Dispute arbitration analysis
+// @desc    Run AI Dispute arbitration analysis with Precedents & Ed25519 Signature
 // @route   POST /api/ai/disputes/:disputeId/arbitrate
 // @access  Private
 export const arbitrateDisputeWithAI = async (
@@ -345,58 +345,36 @@ export const arbitrateDisputeWithAI = async (
     }
 
     const project = await Project.findOne({ projectId: dispute.projectId });
-    const clientPub = project?.clientPubkey || "Client";
-    const freelancerPub = project?.freelancerPubkey || "Freelancer";
+    const allEvidence = dispute.messages.map((m: any) => `${m.sender}: ${m.text}`).join("\n");
 
-    const clientMessages = dispute.messages.filter((m: any) => m.sender === clientPub);
-    const freelancerMessages = dispute.messages.filter((m: any) => m.sender === freelancerPub);
-    const allText = dispute.messages.map((m: any) => m.text).join(" ").toLowerCase();
-
-    let splitFreelancer = 50;
-    let splitClient = 50;
-    let confidence = 85;
-    let suggestion = "Equitable split: 50% to client, 50% to freelancer.";
-    let rationale = "Review of submitted materials shows a mutual breakdown in communication. Work was partially complete but scope definitions were vague.";
+    const ragResult = await RAGService.arbitrateWithPrecedents({
+      disputeId: dispute.disputeId,
+      projectName: project?.title || "PayShield Project",
+      milestoneName: `Milestone ${dispute.milestoneIndex + 1}`,
+      paymentAmount: project?.budget || 0,
+      userRole: dispute.raisedBy === project?.clientPubkey ? "Client" : "Freelancer",
+      complaint: dispute.issue,
+      workExpected: project?.description || "Milestone deliverables",
+      workDelivered: dispute.evidence || "Submitted repository/work artifacts",
+      evidenceNotes: allEvidence,
+    });
 
     const auditSteps = [
-      "AI Dispute Analyzer: Compiling dispute history...",
-      "AI Dispute Analyzer: Scanning dialogue logs...",
-      "AI Dispute Analyzer: Examining technical evidence / IPFS files..."
+      "AI Dispute Analyzer: Compiling dispute history and cryptographic logs...",
+      `AI Vector Search: Retrieved ${ragResult.citedPrecedents.length} precedent(s) from Qdrant/Memory vector engine.`,
+      `AI Decision synthesized with ${ragResult.confidenceScore}% confidence score.`,
+      `Ed25519 Oracle Signature generated: ${ragResult.oracleSignature?.signature?.slice(0, 16)}...`,
     ];
 
-    if (allText.includes("delay") || allText.includes("late") || allText.includes("missing")) {
-      splitFreelancer = 30;
-      splitClient = 70;
-      confidence = 90;
-      suggestion = "Release 30% to Freelancer, refund 70% to Client.";
-      rationale = "AI detected evidence of delivery delays and missing requirements without valid freelancer justification. Scope targets were missed.";
-      auditSteps.push("Rule Triggered: Deliverable delay identified in communications.");
-    } else if (allText.includes("perfect") || allText.includes("delivered") || allText.includes("completed") || allText.includes("code is done")) {
-      splitFreelancer = 80;
-      splitClient = 20;
-      confidence = 93;
-      suggestion = "Release 80% to Freelancer, refund 20% to Client.";
-      rationale = "Analysis suggests high delivery completeness. Minor client visual tweaks do not justify a holdback of technical deliverables.";
-      auditSteps.push("Rule Triggered: Delivery validation successful in technical scope.");
-    } else if (allText.includes("ghost") || allText.includes("ignored") || allText.includes("no reply")) {
-      splitFreelancer = 10;
-      splitClient = 90;
-      confidence = 95;
-      suggestion = "Release 10% to Freelancer, refund 90% to Client.";
-      rationale = "AI identified a communications blackout by the freelancer. Trustless platforms enforce proactive collaboration.";
-      auditSteps.push("Rule Triggered: Freelancer unresponsive patterns detected.");
-    }
-
-    auditSteps.push(`Calculated confidence score at ${confidence}%`);
-    auditSteps.push("Generated suggested release transaction details");
-
     dispute.aiResolution = {
-      suggestion,
-      splitPercentageFreelancer: splitFreelancer,
-      splitPercentageClient: splitClient,
-      confidenceScore: confidence,
-      rationale,
-      resolvedAt: new Date()
+      suggestion: `Release ${ragResult.suggestedSplit.freelancerPercent}% to Freelancer, refund ${ragResult.suggestedSplit.clientPercent}% to Client.`,
+      splitPercentageFreelancer: ragResult.suggestedSplit.freelancerPercent,
+      splitPercentageClient: ragResult.suggestedSplit.clientPercent,
+      confidenceScore: ragResult.confidenceScore,
+      rationale: ragResult.aiDecision,
+      oracleSignature: ragResult.oracleSignature?.signature,
+      oraclePubkey: ragResult.oracleSignature?.oraclePubkey,
+      resolvedAt: new Date(),
     };
 
     dispute.status = "resolved_by_ai";
@@ -488,14 +466,14 @@ export const auditDraftContract = async (req: any, res: Response): Promise<void>
     const { title, description, budget, milestones } = req.body;
     const combinedTerms = `${title || ""} ${description || ""} ${(milestones || []).map((m: any) => `${m.title} ${m.description || ""}`).join(" ")}`;
 
-    const rules = RAGService.searchPlatformRules(combinedTerms, 3);
+    const rules = await RAGService.searchPlatformRules(combinedTerms, 3);
     const result = await RAGService.explainClause(combinedTerms, `Draft project for ${budget || "unspecified"} SOL`);
 
     res.status(200).json({
       auditStatus: "PASSED_WITH_RECOMMENDATIONS",
       riskLevel: result.riskLevel,
       explanation: result.explanation,
-      matchedRules: rules.map((r) => r.rule),
+      matchedRules: rules,
     });
   } catch (error: any) {
     console.error("Audit draft contract error:", error);

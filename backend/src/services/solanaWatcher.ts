@@ -2,7 +2,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import Project from "../models/Project.js";
 
 const PROGRAM_ID = new PublicKey(
-  "H4R1nUBp4Gfuw9uPZwfrKyTVgP3TrQ2RzMD1puWjqYsY",
+  "43QYPVLRMQ9skLbbbZ3uGPsLtTbxcmuU4S5hoZ8bXJKS",
 );
 
 export const startSolanaWatcher = () => {

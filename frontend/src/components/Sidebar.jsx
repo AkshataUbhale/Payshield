@@ -68,7 +68,7 @@ export default function Sidebar({ walletAddress }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { shortAddr, connected } = useWallet();
+  const { shortAddress, connected } = useWallet();
 
   const role = user?.role || "freelancer";
   const navGroups = role === "client" ? CLIENT_NAV : FREELANCER_NAV;
@@ -80,7 +80,7 @@ export default function Sidebar({ walletAddress }) {
     navigate("/");
   };
 
-  const displayAddr = shortAddr || (walletAddress
+  const displayAddr = shortAddress || (walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : null);
 
