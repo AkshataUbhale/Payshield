@@ -18,6 +18,7 @@ interface InMemPoint {
 export class QdrantService {
   private static client: QdrantClient | null = null;
   private static isConnected = false;
+  private static hasCheckedConnection = false;
   private static inMemRules: InMemPoint[] = [];
   private static inMemPrecedents: InMemPoint[] = [];
 
@@ -60,6 +61,9 @@ export class QdrantService {
    * Initialize collections with 768-dimensional cosine vectors
    */
   public static async initCollections(): Promise<boolean> {
+    if (this.hasCheckedConnection) return this.isConnected;
+    this.hasCheckedConnection = true;
+
     try {
       const client = this.getClient();
       const collections = await client.getCollections();
@@ -87,8 +91,8 @@ export class QdrantService {
 
       this.isConnected = true;
       return true;
-    } catch (err: any) {
-      console.warn("⚠️ Qdrant server connection skipped (operating in memory vector store mode):", err.message || err);
+    } catch {
+      console.log("ℹ️ Qdrant server offline — using built-in In-Memory Vector Search (768-dim Cosine Similarity).");
       this.isConnected = false;
       return false;
     }
@@ -162,8 +166,8 @@ export class QdrantService {
     limit: number = 3,
     scoreThreshold: number = 0.4
   ): Promise<any[]> {
-    try {
-      if (this.isConnected || (await this.initCollections())) {
+    if (this.isConnected) {
+      try {
         const client: any = this.getClient();
         const searchFn = client.search || client.query;
         if (typeof searchFn === "function") {
@@ -182,9 +186,9 @@ export class QdrantService {
             }));
           }
         }
+      } catch {
+        // Fallback to in-memory below
       }
-    } catch (err) {
-      console.warn("Qdrant searchRules query skipped, using in-memory cosine vectors:", err);
     }
 
     // In-memory Cosine Vector Search Fallback
@@ -212,8 +216,8 @@ export class QdrantService {
     limit: number = 3,
     scoreThreshold: number = 0.4
   ): Promise<any[]> {
-    try {
-      if (this.isConnected || (await this.initCollections())) {
+    if (this.isConnected) {
+      try {
         const client: any = this.getClient();
         const searchFn = client.search || client.query;
         if (typeof searchFn === "function") {
@@ -232,9 +236,9 @@ export class QdrantService {
             }));
           }
         }
+      } catch {
+        // Fallback to in-memory below
       }
-    } catch (err) {
-      console.warn("Qdrant searchPrecedents query skipped, using in-memory cosine vectors:", err);
     }
 
     // In-memory Cosine Vector Search Fallback
