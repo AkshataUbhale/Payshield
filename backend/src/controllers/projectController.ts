@@ -178,7 +178,7 @@ export const applyToProject = async (
   try {
     const id = req.params.id as string;
     const freelancerPubkey = req.user.id;
-    const { proposal, coverNote, bid, bidAmount, timeline, experience } = req.body;
+    const { proposal, coverNote, bid, bidAmount, timeline, experience, name, freelancerName, resumeUrl } = req.body;
 
     const finalCoverNote = proposal || coverNote;
     const finalBid = bid !== undefined ? Number(bid) : bidAmount !== undefined ? Number(bidAmount) : null;
@@ -215,6 +215,8 @@ export const applyToProject = async (
 
     const proposalData = {
       freelancerPubkey,
+      freelancerName: freelancerName || name || "",
+      resumeUrl: resumeUrl || "",
       bidAmount: finalBid,
       timeline: timeline || "",
       coverNote: finalCoverNote,

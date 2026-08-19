@@ -2,7 +2,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, FileText, Briefcase, Users, Wallet,
   Bell, Settings, LogOut, Shield, ChevronRight,
-  PlusCircle, Search, Send, Star, History, AlertTriangle, User
+  PlusCircle, Search, Send, Star, History, AlertTriangle, User,
+  MessageSquare, ArrowLeftRight
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useWallet } from "../hooks/useWallet";
@@ -15,6 +16,7 @@ const FREELANCER_NAV = [
       { label: "Browse Jobs", icon: Search, to: "/freelancer/jobs" },
       { label: "My Contracts", icon: FileText, to: "/freelancer/contracts" },
       { label: "Submit Work", icon: Send, to: "/submit" },
+      { label: "Messages", icon: MessageSquare, to: "/chat" },
     ]
   },
   {
@@ -43,6 +45,7 @@ const CLIENT_NAV = [
       { label: "Post a Job", icon: PlusCircle, to: "/client/post-job" },
       { label: "My Jobs", icon: Briefcase, to: "/client/jobs" },
       { label: "Hire Freelancer", icon: Users, to: "/client/freelancers" },
+      { label: "Messages", icon: MessageSquare, to: "/chat" },
     ]
   },
   {
@@ -67,10 +70,10 @@ const CLIENT_NAV = [
 export default function Sidebar({ walletAddress }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { shortAddress, connected } = useWallet();
 
-  const role = user?.role || "freelancer";
+  const role = user?.role || localStorage.getItem("userRole") || "freelancer";
   const navGroups = role === "client" ? CLIENT_NAV : FREELANCER_NAV;
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
@@ -78,6 +81,24 @@ export default function Sidebar({ walletAddress }) {
   const handleLogout = () => {
     logout();
     navigate("/");
+  };
+
+  const toggleRole = async () => {
+    const nextRole = role === "client" ? "freelancer" : "client";
+    if (typeof updateUser === "function") {
+      updateUser({ role: nextRole });
+    }
+    localStorage.setItem("userRole", nextRole);
+    try {
+      const token = sessionStorage.getItem("ps_token");
+      const pubkey = user?.walletAddress || (typeof walletAddress === "string" ? walletAddress : null);
+      if (pubkey || token) {
+        await api.saveUserRole({ role: nextRole, publicKey: pubkey }, token);
+      }
+    } catch (e) {
+      console.warn("Could not sync role change to backend:", e);
+    }
+    navigate(nextRole === "client" ? "/client/dashboard" : "/freelancer/dashboard");
   };
 
   const displayAddr = shortAddress || (walletAddress
@@ -104,6 +125,38 @@ export default function Sidebar({ walletAddress }) {
         <div className="sidebar-logo-badge" style={{ marginTop: 6 }}>
           {role === "client" ? "CLIENT PORTAL" : "FREELANCER PORTAL"}
         </div>
+      </div>
+
+      {/* Role Switcher Toggle */}
+      <div style={{ padding: "0 12px 12px" }}>
+        <button
+          id="btn-sidebar-role-toggle"
+          type="button"
+          onClick={toggleRole}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            padding: "8px 12px",
+            background: role === "client"
+              ? "linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(59, 130, 246, 0.1))"
+              : "linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(59, 130, 246, 0.1))",
+            border: role === "client"
+              ? "1px solid rgba(6, 182, 212, 0.3)"
+              : "1px solid rgba(99, 102, 241, 0.3)",
+            borderRadius: 10,
+            color: role === "client" ? "#67e8f9" : "#a5b4fc",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+          }}
+        >
+          <ArrowLeftRight size={13} />
+          <span>{role === "client" ? "Switch to Freelancer ⚡" : "Switch to Client 💼"}</span>
+        </button>
       </div>
 
       {/* Nav */}

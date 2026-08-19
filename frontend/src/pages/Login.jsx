@@ -14,9 +14,25 @@ export default function Login() {
   const didAttempt = useRef(false); // prevent double-fire on StrictMode re-mount
 
   const redirectForRole = (user) => {
-    if (user.role === "client")          navigate("/client/dashboard");
+    if (!user || !user.role) {
+      navigate("/onboarding/role");
+      return;
+    }
+
+    if (!user.onboardingComplete) {
+      if (user.role === "freelancer") {
+        navigate("/onboarding/freelancer");
+      } else if (user.role === "client") {
+        navigate("/onboarding/client");
+      } else {
+        navigate("/onboarding/role");
+      }
+      return;
+    }
+
+    if (user.role === "client") navigate("/client/dashboard");
     else if (user.role === "freelancer") navigate("/freelancer/dashboard");
-    else                                 navigate("/role");
+    else navigate("/onboarding/role");
   };
 
   useEffect(() => {

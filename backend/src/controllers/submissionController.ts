@@ -42,9 +42,18 @@ export const createSubmission = async (
 
     await submission.save();
 
+    // Update project state so client and contract views show "Submitted"
+    project.status = "submitted";
+    if (project.milestones && project.milestones.length > 0 && project.milestones[0]) {
+      project.milestones[0].status = "submitted";
+      project.milestones[0].ipfsHash = ipfsHash;
+    }
+    await project.save();
+
     res.status(201).json({
       message: "Deliverable submitted successfully for client review",
       submission,
+      projectId: project.projectId,
     });
   } catch (error: any) {
     console.error("Error creating submission:", error);
@@ -62,38 +71,41 @@ export const getSubmissions = async (
   try {
     const userPubkey = req.user.id;
 
-    // Retrieve submissions either assigned to client projects or uploaded by freelancer
+    // Retrieve client's existing projects
     const clientProjects = await Project.find({ clientPubkey: userPubkey });
     const projectIds = clientProjects.map((p) => p.projectId);
 
+    // Only return pending submissions that belong to these real existing projects
     const submissions = await Submission.find({
-      $or: [
-        { freelancerPubkey: userPubkey },
-        { projectId: { $in: projectIds } },
-      ],
+      projectId: { $in: projectIds },
+      status: "pending",
     }).sort({ createdAt: -1 });
 
     // Map fields to match UI expectations in frontend
-    const mapped = submissions.map((sub) => {
-      const proj = clientProjects.find((p) => p.projectId === sub.projectId);
-      return {
-        id: sub._id,
-        contractId: sub.projectId,
-        title: proj?.title || "Project Work Delivery",
-        freelancer: sub.freelancerPubkey,
-        amount: proj?.budget || 0,
-        currency: "USDC",
-        ipfsHash: sub.ipfsHash,
-        submittedAt: new Date(sub.createdAt).toLocaleString(),
-        note: sub.note,
-        status: sub.status,
-        files: Array.from({ length: sub.fileCount || 1 }).map((_, i) => ({
-          name: `deliverable_${i + 1}.zip`,
-          size: "4.5 MB",
-          type: "Archive",
-        })),
-      };
-    });
+    const mapped = submissions
+      .map((sub) => {
+        const proj = clientProjects.find((p) => p.projectId === sub.projectId);
+        if (!proj) return null;
+        return {
+          id: sub._id,
+          contractId: proj.projectId,
+          projectId: proj.projectId,
+          title: proj.title,
+          freelancer: sub.freelancerPubkey || proj.freelancerPubkey,
+          amount: proj.budget || 0,
+          currency: "USDC",
+          ipfsHash: sub.ipfsHash,
+          submittedAt: new Date(sub.createdAt).toLocaleString(),
+          note: sub.note,
+          status: sub.status,
+          files: Array.from({ length: sub.fileCount || 1 }).map((_, i) => ({
+            name: `deliverable_${i + 1}.zip`,
+            size: "4.5 MB",
+            type: "Archive",
+          })),
+        };
+      })
+      .filter(Boolean);
 
     res.status(200).json(mapped);
   } catch (error: any) {

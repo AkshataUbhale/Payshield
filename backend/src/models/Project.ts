@@ -5,10 +5,13 @@ export interface IMilestone {
   title: string;
   amount: number;
   status: "pending" | "submitted" | "approved" | "rejected";
+  ipfsHash?: string;
 }
 
 export interface IProposal {
   freelancerPubkey: string;
+  freelancerName?: string;
+  resumeUrl?: string;
   bidAmount: number;
   timeline: string;
   coverNote?: string;
@@ -24,7 +27,7 @@ export interface IProject extends Document {
   title: string;
   description: string;
   budget: number;
-  status: "open" | "in_progress" | "completed" | "cancelled";
+  status: "open" | "in_progress" | "submitted" | "completed" | "cancelled" | "in_dispute";
   skills?: string[];
   category?: string;
   deadline?: Date;
@@ -46,10 +49,13 @@ const MilestoneSchema: Schema = new Schema({
     enum: ["pending", "submitted", "approved", "rejected"],
     default: "pending",
   },
+  ipfsHash: { type: String },
 });
 
 const ProposalSchema: Schema = new Schema({
   freelancerPubkey: { type: String, required: true },
+  freelancerName: { type: String, default: "" },
+  resumeUrl: { type: String, default: "" },
   bidAmount: { type: Number, required: true },
   timeline: { type: String, default: "" },
   coverNote: { type: String, default: "" },
@@ -68,7 +74,7 @@ const ProjectSchema: Schema = new Schema(
     budget: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["open", "in_progress", "completed", "cancelled"],
+      enum: ["open", "in_progress", "submitted", "completed", "cancelled", "in_dispute"],
       default: "open",
       index: true,
     },

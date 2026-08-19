@@ -1,60 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "../components/Sidebar";
 import NotificationBell from "../components/common/NotificationBell";
-import { Send, Search, Circle, Bot, Lock, Paperclip, Smile } from "lucide-react";
+import { Send, Search, Lock, Paperclip, Smile, ShieldCheck, MessageSquare } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-
-// ── Mock conversation data ──────────────────────────────────────────────────
-const MOCK_CONTACTS = [
-  {
-    id: 1, name: "Alex Rivera", role: "client", avatar: "A",
-    lastMessage: "Can you submit the milestone by Friday?",
-    time: "10:32 AM", unread: 2, online: true,
-    projectTag: "React Dashboard"
-  },
-  {
-    id: 2, name: "Priya Shah", role: "client", avatar: "P",
-    lastMessage: "Payment has been released on-chain ✅",
-    time: "Yesterday", unread: 0, online: false,
-    projectTag: "Smart Contract Dev"
-  },
-  {
-    id: 3, name: "Marcus Chen", role: "freelancer", avatar: "M",
-    lastMessage: "I'll review the deliverables today.",
-    time: "Tuesday", unread: 0, online: true,
-    projectTag: "UI/UX Design"
-  },
-  {
-    id: 4, name: "Sofia Müller", role: "client", avatar: "S",
-    lastMessage: "Great work on the API integration!",
-    time: "Monday", unread: 1, online: false,
-    projectTag: "MERN Stack App"
-  },
-];
-
-const MOCK_MESSAGES = {
-  1: [
-    { id: 1, from: "them", text: "Hey! Just checking in on the dashboard progress.", time: "10:00 AM" },
-    { id: 2, from: "me",   text: "Hi Alex! Going well. I've completed the charts and the stats panel. Working on the sidebar now.", time: "10:05 AM" },
-    { id: 3, from: "them", text: "Perfect! Can you submit the milestone by Friday? The escrow will release on approval.", time: "10:20 AM" },
-    { id: 4, from: "me",   text: "Absolutely. I'll have it ready by Thursday EOD for a buffer.", time: "10:25 AM" },
-    { id: 5, from: "them", text: "Can you submit the milestone by Friday?", time: "10:32 AM" },
-  ],
-  2: [
-    { id: 1, from: "them", text: "The smart contract audit came back clean.", time: "Yesterday 2:00 PM" },
-    { id: 2, from: "me",   text: "Excellent! The gas optimization changes really helped.", time: "Yesterday 2:10 PM" },
-    { id: 3, from: "them", text: "Payment has been released on-chain ✅", time: "Yesterday 3:00 PM" },
-  ],
-  3: [
-    { id: 1, from: "me",   text: "I've shared the Figma design file in the IPFS link.", time: "Tue 11:00 AM" },
-    { id: 2, from: "them", text: "Got it! Looks great. I'll review the deliverables today.", time: "Tue 11:30 AM" },
-  ],
-  4: [
-    { id: 1, from: "them", text: "The API endpoints are working perfectly now.", time: "Mon 9:00 AM" },
-    { id: 2, from: "me",   text: "Thanks! I added rate limiting and JWT refresh too.", time: "Mon 9:15 AM" },
-    { id: 3, from: "them", text: "Great work on the API integration!", time: "Mon 10:00 AM" },
-  ],
-};
+import { useWallet } from "../hooks/useWallet";
+import * as api from "../services/api";
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 function ContactItem({ contact, isActive, onClick }) {
@@ -78,7 +28,7 @@ function ContactItem({ contact, isActive, onClick }) {
           display: "flex", alignItems: "center", justifyContent: "center",
           fontWeight: 700, fontSize: 16, color: "white"
         }}>
-          {contact.avatar}
+          {contact.avatar || contact.name?.charAt(0) || "U"}
         </div>
         {contact.online && (
           <div style={{
@@ -104,33 +54,30 @@ function ContactItem({ contact, isActive, onClick }) {
           }}>
             {contact.lastMessage}
           </span>
-          {contact.unread > 0 && (
-            <span style={{
-              background: "#6366f1", color: "white",
-              borderRadius: "50%", width: 18, height: 18,
-              fontSize: 10, fontWeight: 700, flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center"
-            }}>
-              {contact.unread}
-            </span>
-          )}
         </div>
         {/* Project tag */}
-        <div style={{
-          marginTop: 4,
-          display: "inline-block", fontSize: 10, fontWeight: 600,
-          padding: "1px 7px", borderRadius: 20,
-          background: "rgba(99,102,241,0.1)", color: "var(--accent-purple)"
-        }}>
-          {contact.projectTag}
-        </div>
+        {contact.projectTag && (
+          <div style={{
+            marginTop: 4,
+            display: "inline-block", fontSize: 10, fontWeight: 600,
+            padding: "1px 7px", borderRadius: 20,
+            background: "rgba(99,102,241,0.1)", color: "var(--accent-purple)",
+            maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+          }}>
+            {contact.projectTag}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function MessageBubble({ msg }) {
-  const isMe = msg.from === "me";
+function MessageBubble({ msg, myPubkey }) {
+  const isMe = msg.from === "me" || msg.sender === myPubkey;
+  const timeFormatted = msg.timestamp
+    ? new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : msg.time || "Just now";
+
   return (
     <div style={{
       display: "flex", justifyContent: isMe ? "flex-end" : "flex-start",
@@ -147,12 +94,12 @@ function MessageBubble({ msg }) {
         color: "var(--text-primary)", fontSize: 14, lineHeight: 1.5,
         boxShadow: isMe ? "0 4px 16px rgba(99,102,241,0.3)" : "none",
       }}>
-        {msg.text}
+        {msg.text || msg.encryptedContent}
         <div style={{
           fontSize: 10, color: isMe ? "rgba(255,255,255,0.6)" : "var(--text-muted)",
           textAlign: "right", marginTop: 4
         }}>
-          {msg.time}
+          {timeFormatted}
         </div>
       </div>
     </div>
@@ -162,12 +109,65 @@ function MessageBubble({ msg }) {
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function ChatPage() {
   const { user } = useAuth();
-  const [activeContact, setActiveContact]   = useState(MOCK_CONTACTS[0]);
-  const [messages, setMessages]             = useState(MOCK_MESSAGES[1]);
+  const { publicKey } = useWallet();
+  const [contacts, setContacts]             = useState([]);
+  const [activeContact, setActiveContact]   = useState(null);
+  const [messages, setMessages]             = useState([]);
   const [input, setInput]                   = useState("");
   const [search, setSearch]                 = useState("");
-  const [contacts, setContacts]             = useState(MOCK_CONTACTS);
+  const [loading, setLoading]               = useState(true);
+  const [sending, setSending]               = useState(false);
   const messagesEndRef                      = useRef(null);
+
+  const myPubkey = user?.walletAddress || user?.id || (publicKey ? publicKey.toBase58() : null);
+
+  // 1. Fetch eligible contacts (users with shared proposals or contracts)
+  useEffect(() => {
+    async function loadContacts() {
+      setLoading(true);
+      try {
+        const token = sessionStorage.getItem("ps_token");
+        if (!myPubkey) {
+          setContacts([]);
+          setLoading(false);
+          return;
+        }
+        const res = await api.getEligibleContacts(myPubkey, token);
+        const list = Array.isArray(res) ? res : [];
+        setContacts(list);
+        if (list.length > 0) {
+          setActiveContact(list[0]);
+        }
+      } catch (err) {
+        console.error("Failed to load eligible contacts:", err);
+        setContacts([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadContacts();
+  }, [myPubkey]);
+
+  // 2. Fetch messages for active contact
+  useEffect(() => {
+    async function loadMessages() {
+      if (!activeContact) {
+        setMessages([]);
+        return;
+      }
+      try {
+        const token = sessionStorage.getItem("ps_token");
+        const threadId = activeContact.threadId || [myPubkey, activeContact.publicKey || activeContact.id].sort().join("-");
+        const res = await api.getThreadMessages(threadId, token);
+        const list = Array.isArray(res) ? res : [];
+        setMessages(list);
+      } catch (err) {
+        console.error("Failed to load thread messages:", err);
+        setMessages([]);
+      }
+    }
+    loadMessages();
+  }, [activeContact, myPubkey]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -175,28 +175,37 @@ export default function ChatPage() {
 
   const handleSelectContact = (contact) => {
     setActiveContact(contact);
-    setMessages(MOCK_MESSAGES[contact.id] || []);
-    // Clear unread
-    setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, unread: 0 } : c));
   };
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    const newMsg = {
-      id: Date.now(), from: "me", text: input.trim(),
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    };
-    setMessages(prev => [...prev, newMsg]);
-    // Update last message in contact list
-    setContacts(prev => prev.map(c =>
-      c.id === activeContact.id ? { ...c, lastMessage: input.trim(), time: "Just now" } : c
-    ));
+  const handleSend = async () => {
+    if (!input.trim() || !activeContact || sending) return;
+    const textToSend = input.trim();
     setInput("");
+    setSending(true);
+
+    const threadId = activeContact.threadId || [myPubkey, activeContact.publicKey || activeContact.id].sort().join("-");
+    const optimisticMsg = {
+      sender: myPubkey,
+      encryptedContent: textToSend,
+      timestamp: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    try {
+      const token = sessionStorage.getItem("ps_token");
+      await api.sendDirectMessage(threadId, myPubkey, textToSend, token);
+    } catch (err) {
+      console.error("Failed to send message:", err);
+      alert(err.message || "Failed to send message. Verified proposal or contract required.");
+    } finally {
+      setSending(false);
+    }
   };
 
-  const filteredContacts = contacts.filter(c =>
+  const filteredContacts = contacts.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.projectTag.toLowerCase().includes(search.toLowerCase())
+    (c.projectTag || "").toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -247,14 +256,30 @@ export default function ChatPage() {
 
             {/* Contacts */}
             <div style={{ flex: 1, overflowY: "auto", padding: "0 8px 12px" }}>
-              {filteredContacts.map(c => (
-                <ContactItem
-                  key={c.id}
-                  contact={c}
-                  isActive={activeContact?.id === c.id}
-                  onClick={() => handleSelectContact(c)}
-                />
-              ))}
+              {loading ? (
+                <div style={{ padding: "30px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+                  Loading encrypted conversations...
+                </div>
+              ) : filteredContacts.length === 0 ? (
+                <div style={{ padding: "30px 14px", textAlign: "center" }}>
+                  <MessageSquare size={32} style={{ color: "var(--text-muted)", margin: "0 auto 10px", opacity: 0.7 }} />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>
+                    No Active Conversations
+                  </div>
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                    PayShield protects you: Messaging opens once a proposal is submitted or an escrow contract is created.
+                  </p>
+                </div>
+              ) : (
+                filteredContacts.map(c => (
+                  <ContactItem
+                    key={c.id}
+                    contact={c}
+                    isActive={activeContact?.id === c.id}
+                    onClick={() => handleSelectContact(c)}
+                  />
+                ))
+              )}
             </div>
           </div>
 
@@ -365,8 +390,16 @@ export default function ChatPage() {
                 </div>
               </>
             ) : (
-              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 15 }}>
-                Select a conversation to start chatting
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", padding: 32, textAlign: "center" }}>
+                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                  <ShieldCheck size={32} style={{ color: "var(--accent-purple)" }} />
+                </div>
+                <h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+                  End-to-End Encrypted Messaging
+                </h3>
+                <p style={{ fontSize: 13, maxWidth: 380, lineHeight: 1.6, color: "var(--text-secondary)" }}>
+                  Only clients and freelancers who share a submitted proposal or an active contract can message each other. Select a conversation on the left to view messages.
+                </p>
               </div>
             )}
           </div>

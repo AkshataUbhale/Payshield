@@ -21,13 +21,13 @@ export default function FreelancerRecommendations() {
         const list = Array.isArray(res) ? res : res.freelancers || [];
         const mapped = list.map((f) => ({
           id: f.publicKey || f._id,
-          name: f.name || f.username || `Dev (${f.publicKey.slice(0, 6)}...${f.publicKey.slice(-4)})`,
-          skills: f.skills && f.skills.length > 0 ? f.skills : ["Solana", "Web3", "Full-Stack"],
+          name: f.fullName || f.name || f.username || `Dev (${(f.publicKey || "").slice(0, 6)}...${(f.publicKey || "").slice(-4)})`,
+          skills: Array.isArray(f.skills) && f.skills.length > 0 ? f.skills : ["Solana", "Web3", "Full-Stack"],
           rating: 5.0,
           hourlyRate: f.hourlyRate || 50,
           completedJobs: f.completedProjects || 0,
-          bio: f.bio || "Verified Solana & Web3 Developer available for escrow contracts.",
-          location: f.location || "Global (Decentralized)",
+          bio: f.bio || "Full-stack Web3 developer ready for milestone contracts.",
+          location: f.location || f.availability || "Remote",
         }));
         setFreelancers(mapped);
       } catch (err) {

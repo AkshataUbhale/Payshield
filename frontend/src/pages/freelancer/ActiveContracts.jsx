@@ -5,6 +5,7 @@ import Sidebar from "../../components/Sidebar";
 import NotificationBell from "../../components/common/NotificationBell";
 import EscrowStatus from "../../components/contracts/EscrowStatus";
 import { useWallet } from "../../hooks/useWallet";
+import { useAuth } from "../../hooks/useAuth";
 import * as api from "../../services/api";
 
 const STATUS_ICONS = {
@@ -17,6 +18,7 @@ const STATUS_ICONS = {
 
 export default function ActiveContracts() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { publicKey } = useWallet();
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,20 +28,30 @@ export default function ActiveContracts() {
       setLoading(true);
       try {
         const token = sessionStorage.getItem("ps_token");
-        const res = await api.getContracts({}, token);
-        const list = Array.isArray(res) ? res : res.contracts || [];
+        const myPubkey = user?.walletAddress || user?.id || (publicKey ? publicKey.toBase58() : null);
+        if (!myPubkey && !token) {
+          setContracts([]);
+          return;
+        }
+
+        const res = await api.getContracts({ freelancerPubkey: myPubkey }, token);
+        const list = Array.isArray(res) ? res : res.contracts || res.projects || [];
         const myContracts = list.filter(
-          (c) => c.freelancerPubkey === publicKey || !publicKey || c.status === "in_progress"
+          (c) =>
+            c.freelancerPubkey === myPubkey ||
+            c.freelancerPubkey === user?.walletAddress ||
+            c.freelancerPubkey === user?.id
         );
         setContracts(myContracts);
       } catch (err) {
         console.error("Failed to load contracts:", err);
+        setContracts([]);
       } finally {
         setLoading(false);
       }
     }
     loadContracts();
-  }, [publicKey]);
+  }, [publicKey, user?.walletAddress, user?.id]);
 
   const activeCount = contracts.filter((c) => c.status === "in_progress").length;
   const completedCount = contracts.filter((c) => c.status === "completed").length;
@@ -147,7 +159,7 @@ export default function ActiveContracts() {
                         className="btn btn-secondary btn-sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(c.status === "in_progress" ? `/submit-work` : `/contract/${displayId}`);
+                          navigate(c.status === "in_progress" ? `/submit` : `/contract/${displayId}`);
                         }}
                       >
                         {c.status === "in_progress" ? "Submit Work" : "View Details"} <ArrowRight size={13} />

@@ -14,6 +14,7 @@ import submissionRoutes from "./routes/submissionRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import { startSolanaWatcher } from "./services/solanaWatcher.js";
 import { RAGService } from "./services/rag/ragService.js";
+import { purgeDummyRecordsInternal } from "./controllers/userController.js";
 
 dotenv.config();
 
@@ -35,7 +36,8 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -48,6 +50,15 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/draft-contracts", draftContractRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/payments", paymentRoutes);
+
+// Centralized error handler to guarantee JSON error responses
+app.use((err: any, _req: Request, res: Response, _next: any) => {
+  console.error("Express unhandled error:", err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    message: err.message || "Internal Server Error",
+  });
+});
 
 // Services
 startSolanaWatcher();
@@ -83,6 +94,11 @@ async function start() {
     // Initialize RAG Vector Search & Embeddings
     RAGService.initializeKnowledge().catch((err: any) =>
       console.warn("RAG knowledge initialization background warning:", err)
+    );
+
+    // Purge test placeholder records
+    purgeDummyRecordsInternal().catch((err: any) =>
+      console.warn("Dummy records purge warning:", err)
     );
 
     app.listen(PORT, () => {

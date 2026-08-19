@@ -5,40 +5,6 @@ import { useWallet } from "../hooks/useWallet";
 import { releaseMilestoneOnChain } from "../services/solanaWeb3";
 import { getSubmissions, approvePayment, rejectPayment } from "../services/api";
 
-const PENDING_APPROVALS = [
-  {
-    id: 2,
-    title: "Smart Contract Development",
-    freelancer: "0x5e6f...7a8b",
-    amount: 800,
-    currency: "USDC",
-    ipfsHash: "QmXz7rNkwPLp8kHBFtMbv3QJ5xRuY9WcNdTq2eMfA6yGz4",
-    submittedAt: "Mar 12, 2025 — 14:30 UTC",
-    milestone: "Testing & Deployment",
-    files: [
-      { name: "Escrow.sol", size: "4.2 KB", type: "Solidity" },
-      { name: "Dispute.sol", size: "2.8 KB", type: "Solidity" },
-      { name: "test_report.pdf", size: "1.1 MB", type: "PDF" },
-      { name: "deploy_scripts.zip", size: "18 KB", type: "Archive" },
-    ],
-    note: "All three contracts deployed to Sepolia testnet. Test coverage at 97%. Hardhat deployment scripts included."
-  },
-  {
-    id: 4,
-    title: "Mobile App UI Design",
-    freelancer: "0x2c3d...4e5f",
-    amount: 450,
-    currency: "USDC",
-    ipfsHash: "QmBq3RsT8uVwXYZ5k9mNpL2jFhCdE7aGiAoW4rKeMvPxH1",
-    submittedAt: "Mar 11, 2025 — 09:15 UTC",
-    milestone: "Figma Prototypes",
-    files: [
-      { name: "payshield_app_figma.fig", size: "14.5 MB", type: "Figma" },
-      { name: "design_system.pdf", size: "3.2 MB", type: "PDF" },
-    ],
-    note: "Complete Figma file with 28 screens, auto-layout components, and exported assets."
-  }
-];
 
 export default function PaymentApproval() {
   const { publicKey, connected, signTransaction, signAllTransactions } = useWallet();
@@ -52,26 +18,18 @@ export default function PaymentApproval() {
   // Load real pending submissions from backend
   useEffect(() => {
     const token = sessionStorage.getItem("ps_token");
+    if (!token) return;
     getSubmissions(token)
       .then(data => {
-        setApprovals(data);
-        if (data.length > 0) setSelected(data[0]);
+        const list = Array.isArray(data) ? data : [];
+        setApprovals(list);
+        if (list.length > 0) setSelected(list[0]);
       })
       .catch(err => {
-        console.warn("API unavailable, using demo data:", err.message);
+        console.error("Failed to load submissions:", err.message);
         setFetchError(err.message);
-        // Fallback demo data when backend is offline
-        const demo = [
-          {
-            id: 2, title: "Smart Contract Development", freelancer: "5e6f...7a8b",
-            amount: 800, currency: "USDC", ipfsHash: "QmXz7rNkwPLp8kHBFtMbv3QJ5xRuY9WcNdTq2eMfA6yGz4",
-            submittedAt: "Mar 12, 2025 — 14:30 UTC", milestone: "Testing & Deployment",
-            files: [{ name: "Escrow.sol", size: "4.2 KB", type: "Solidity" }],
-            note: "All contracts deployed to Devnet. Test coverage at 97%."
-          }
-        ];
-        setApprovals(demo);
-        setSelected(demo[0]);
+        // Show empty state — no fake data
+        setApprovals([]);
       });
   }, []);
 
@@ -163,7 +121,7 @@ export default function PaymentApproval() {
               <button
                 id="btn-review-more"
                 className="btn btn-secondary"
-                onClick={() => { setResult(null); setSelected(PENDING_APPROVALS[0]); }}
+                onClick={() => { setResult(null); setSelected(approvals[0] || null); }}
               >
                 Review More Submissions
               </button>

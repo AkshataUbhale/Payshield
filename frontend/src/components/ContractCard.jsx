@@ -26,7 +26,7 @@ export default function ContractCard({ contract, onClick }) {
           <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>
             {title || `Contract #${id}`}
           </h3>
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{createdAt || "Mar 12, 2025"}</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{createdAt || ""}</span>
         </div>
         <span className={`badge ${statusClass[status] || "badge-pending"}`}>
           <span style={{

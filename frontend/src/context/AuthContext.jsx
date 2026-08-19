@@ -35,11 +35,13 @@ export function AuthProvider({ children }) {
       const res = await loginWalletWithSignature(address, signature);
       const userData = {
         id: res.user.publicKey,
-        name: `${res.user.publicKey.slice(0, 6)}...${res.user.publicKey.slice(-4)}`,
+        name: res.user.fullName || (res.user.username ? res.user.username : `${res.user.publicKey.slice(0, 6)}...${res.user.publicKey.slice(-4)}`),
+        fullName: res.user.fullName || null,
         email: res.user.email || null,
         role: res.user.role || role,
         walletAddress: res.user.publicKey,
         avatar: res.user.avatarUrl || null,
+        onboardingComplete: !!res.user.onboardingComplete,
         joinedAt: new Date(res.user.createdAt).toISOString().split("T")[0],
       };
 

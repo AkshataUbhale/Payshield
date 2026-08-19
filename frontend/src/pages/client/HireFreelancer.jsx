@@ -61,15 +61,13 @@ export default function HireFreelancer() {
   const handleHire = () => {
     setShowModal(false);
     setHired(true);
-    setTimeout(() => {
-      navigate("/create", {
-        state: {
-          freelancerPubkey: freelancer?.id,
-          title: form.title,
-          budget: form.budget,
-        },
-      });
-    }, 1000);
+    navigate("/create", {
+      state: {
+        freelancerPubkey: freelancer?.id,
+        title: form.title,
+        budget: form.budget,
+      },
+    });
   };
 
   if (loading) {

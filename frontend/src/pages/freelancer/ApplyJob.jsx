@@ -1,16 +1,31 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Send, DollarSign } from "lucide-react";
+import { ArrowLeft, Send, DollarSign, User, Link as LinkIcon, Clock } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import { applyToProject, getContract } from "../../services/api";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function ApplyJob() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [job, setJob] = useState(null);
-  const [form, setForm] = useState({ proposal: "", bid: "", timeline: "", experience: "" });
+  const [form, setForm] = useState({
+    name: user?.name || user?.fullName || "",
+    resumeUrl: "",
+    proposal: "",
+    bid: "",
+    timeline: "1 week",
+    experience: "",
+  });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (user?.name || user?.fullName) {
+      setForm((f) => ({ ...f, name: f.name || user.fullName || user.name || "" }));
+    }
+  }, [user]);
 
   useEffect(() => {
     const token = sessionStorage.getItem("ps_token");
@@ -27,7 +42,11 @@ export default function ApplyJob() {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handleSubmit = async () => {
-    if (!form.proposal || !form.bid) {
+    if (!form.name.trim()) {
+      alert("Please enter your name.");
+      return;
+    }
+    if (!form.proposal.trim() || !form.bid) {
       alert("Please fill in your proposal cover letter and bid amount.");
       return;
     }
@@ -37,10 +56,12 @@ export default function ApplyJob() {
       await applyToProject(
         id,
         {
+          name: form.name.trim(),
+          resumeUrl: form.resumeUrl.trim(),
           proposal: form.proposal,
           bid: Number(form.bid),
           timeline: form.timeline,
-          experience: form.experience,
+          experience: form.experience || form.resumeUrl,
         },
         token,
       );
@@ -102,6 +123,38 @@ export default function ApplyJob() {
               <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 24 }}>
                 {job ? `Proposal for: ${job.title}` : "Write Your Proposal"}
               </h2>
+
+              {/* Full Name */}
+              <div className="form-group">
+                <label className="form-label">Full Name *</label>
+                <div className="input-group">
+                  <User className="input-icon" size={15} />
+                  <input
+                    id="input-applicant-name"
+                    type="text"
+                    className="form-input input-with-icon"
+                    placeholder="Your Name (e.g. Alex Miller)"
+                    value={form.name}
+                    onChange={set("name")}
+                  />
+                </div>
+              </div>
+
+              {/* Resume / Portfolio Link */}
+              <div className="form-group">
+                <label className="form-label">Resume / Portfolio / GitHub Link</label>
+                <div className="input-group">
+                  <LinkIcon className="input-icon" size={15} />
+                  <input
+                    id="input-resume-url"
+                    type="url"
+                    className="form-input input-with-icon"
+                    placeholder="https://github.com/yourhandle or https://portfolio.dev"
+                    value={form.resumeUrl}
+                    onChange={set("resumeUrl")}
+                  />
+                </div>
+              </div>
 
               {/* Bid Amount */}
               <div className="form-group">

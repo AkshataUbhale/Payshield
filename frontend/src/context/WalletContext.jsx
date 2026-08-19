@@ -4,6 +4,7 @@ import {
   ConnectionProvider,
   WalletProvider as SolanaWalletProvider,
   useWallet as useSolanaWallet,
+  useConnection,
 } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
@@ -18,12 +19,14 @@ export const WalletContext = createContext({
   signTransaction: null,
   signAllTransactions: null,
   sendTransaction: null,
+  connection: null,
   shortAddress: null,
   shortAddr: null,   // alias so old code keeps working
 });
 
 // ── Inner bridge: reads Solana adapter state → our context ───────────────────
 function WalletBridge({ children }) {
+  const { connection } = useConnection();
   const {
     publicKey,
     connected,
@@ -44,6 +47,7 @@ function WalletBridge({ children }) {
         signTransaction,
         signAllTransactions,
         sendTransaction,
+        connection,
         shortAddress,
         shortAddr: shortAddress, // alias for backward compat
       }}

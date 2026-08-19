@@ -347,7 +347,6 @@ export default function LandingPage() {
           </span>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <button id="btn-nav-login" className="btn btn-ghost btn-sm" onClick={() => navigate("/login")}>Login</button>
           <button
             id="btn-nav-connect"
             className="btn btn-primary btn-sm"
@@ -444,14 +443,14 @@ export default function LandingPage() {
               className="btn btn-primary btn-lg"
               onClick={handleConnectWallet}
             >
-              <Shield size={18} /> Connect Wallet
+              <Shield size={18} /> Connect Solana Wallet
             </button>
             <button
-              id="btn-hero-login"
-              className="btn btn-ghost btn-lg"
-              onClick={() => navigate("/login")}
+              id="btn-hero-onboarding"
+              className="btn btn-secondary btn-lg"
+              onClick={() => navigate("/onboarding/role")}
             >
-              Login with Email <ArrowRight size={16} />
+              Choose Role &amp; Onboard <ArrowRight size={16} />
             </button>
           </div>
 

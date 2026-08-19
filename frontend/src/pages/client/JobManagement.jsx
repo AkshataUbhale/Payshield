@@ -137,8 +137,11 @@ export default function JobManagement() {
                       }}
                     >
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                          <span style={{ fontWeight: 700, fontSize: 14 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)" }}>
+                            {p.freelancerName || `Freelancer (${p.freelancerPubkey.slice(0, 6)}...${p.freelancerPubkey.slice(-4)})`}
+                          </span>
+                          <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-muted)" }}>
                             {p.freelancerPubkey.slice(0, 6)}...{p.freelancerPubkey.slice(-4)}
                           </span>
                           <span className="badge badge-active" style={{ fontSize: 11 }}>
@@ -150,16 +153,30 @@ export default function JobManagement() {
                             </span>
                           )}
                         </div>
-                        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+
+                        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, whiteSpace: "pre-wrap", marginBottom: 8 }}>
                           {p.coverNote}
                         </p>
-                        {p.experience && (
-                          <div style={{ fontSize: 12, color: "var(--accent-purple)", marginTop: 6 }}>
-                            <strong>Experience:</strong> {p.experience}
-                          </div>
-                        )}
+
+                        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12 }}>
+                          {p.resumeUrl && (
+                            <a
+                              href={p.resumeUrl.startsWith("http") ? p.resumeUrl : `https://${p.resumeUrl}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: "var(--accent-purple)", textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: 4 }}
+                            >
+                              📄 View Resume / Portfolio
+                            </a>
+                          )}
+                          {p.experience && (
+                            <span style={{ color: "var(--text-muted)" }}>
+                              <strong>Note:</strong> {p.experience}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {selectedJobProposals.status === "open" ? (
                           <button
                             className="btn btn-primary btn-sm"
@@ -171,6 +188,12 @@ export default function JobManagement() {
                         ) : selectedJobProposals.freelancerPubkey === p.freelancerPubkey ? (
                           <span className="badge badge-completed">Hired</span>
                         ) : null}
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => navigate("/chat")}
+                        >
+                          Message
+                        </button>
                       </div>
                     </div>
                   ))}

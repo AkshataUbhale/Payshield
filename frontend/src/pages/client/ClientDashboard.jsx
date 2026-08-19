@@ -23,29 +23,47 @@ export default function ClientDashboard() {
 
   useEffect(() => {
     const token = sessionStorage.getItem("ps_token");
-    if (!token) {
+    const myPubkey = user?.walletAddress || user?.id || (publicKey ? publicKey.toBase58() : null);
+
+    if (!myPubkey && !token) {
+      setContracts([]);
+      setFreelancers([]);
       setLoading(false);
       return;
     }
 
-    getContracts({}, token)
+    getContracts({ clientPubkey: myPubkey }, token)
       .then((data) => {
         const list = Array.isArray(data) ? data : data.projects || data.contracts || [];
-        setContracts(list);
+        const clientOnly = list.filter(
+          (c) => c.clientPubkey === myPubkey || c.clientPubkey === user?.walletAddress || c.clientPubkey === user?.id
+        );
+        setContracts(clientOnly);
       })
-      .catch((err) => console.error("Failed to load client projects:", err));
+      .catch((err) => {
+        console.error("Failed to load client projects:", err);
+        setContracts([]);
+      });
 
     getFreelancers(token)
       .then((data) => {
         const list = Array.isArray(data) ? data : data.freelancers || [];
-        setFreelancers(list.slice(0, 3));
+        const otherFreelancers = list.filter(
+          (f) => (f.publicKey || f._id) !== myPubkey && (f.publicKey || f._id) !== user?.walletAddress
+        );
+        // Show other freelancers if available, or all registered specialists
+        const toShow = otherFreelancers.length > 0 ? otherFreelancers : list;
+        setFreelancers(toShow.slice(0, 3));
       })
-      .catch((err) => console.error("Failed to load freelancers:", err))
+      .catch((err) => {
+        console.error("Failed to load freelancers:", err);
+        setFreelancers([]);
+      })
       .finally(() => setLoading(false));
-  }, [publicKey]);
+  }, [publicKey, user?.walletAddress, user?.id]);
 
   const activeContracts = contracts.filter((c) => c.status === "in_progress");
-  const totalSpent = contracts.reduce((acc, c) => acc + (c.budget || 0), 0);
+  const totalSpent = contracts.reduce((acc, c) => acc + (Number(c.budget) || 0), 0);
   const uniqueFreelancers = new Set(contracts.map((c) => c.freelancerPubkey).filter(Boolean)).size;
 
   const stats = [
@@ -110,13 +128,13 @@ export default function ClientDashboard() {
                       key={f.publicKey || f._id}
                       freelancer={{
                         id: f.publicKey || f._id,
-                        name: f.name || f.username || `Dev (${f.publicKey?.slice(0, 6)}...${f.publicKey?.slice(-4)})`,
-                        skills: f.skills && f.skills.length > 0 ? f.skills : ["Solana", "Web3"],
+                        name: f.fullName || f.name || f.username || `Dev (${(f.publicKey || "").slice(0, 6)}...${(f.publicKey || "").slice(-4)})`,
+                        skills: Array.isArray(f.skills) && f.skills.length > 0 ? f.skills : ["Solana", "Web3"],
                         rating: 5.0,
                         hourlyRate: f.hourlyRate || 50,
                         completedJobs: f.completedProjects || 0,
                         bio: f.bio || "Full-stack Web3 developer ready for milestone contracts.",
-                        location: f.location || "Remote",
+                        location: f.location || f.availability || "Remote",
                       }}
                       onClick={() => navigate(`/client/hire/${f.publicKey || f._id}`)}
                     />

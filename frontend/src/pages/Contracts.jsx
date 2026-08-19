@@ -3,12 +3,16 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ContractCard from "../components/ContractCard";
 import { Search, Filter, Plus } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
+import { useWallet } from "../hooks/useWallet";
 import { getContracts } from "../services/api";
 
 const FILTERS = ["All", "Active", "Pending", "Submitted", "Disputed", "Completed"];
 
 export default function Contracts() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { publicKey } = useWallet();
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [filter, setFilter]       = useState("All");
@@ -16,11 +20,25 @@ export default function Contracts() {
 
   useEffect(() => {
     const token = sessionStorage.getItem("ps_token");
+    const myPubkey = user?.walletAddress || user?.id || (publicKey ? publicKey.toBase58() : null);
+
+    if (!myPubkey && !token) {
+      setContracts([]);
+      setLoading(false);
+      return;
+    }
+
     getContracts({}, token)
       .then(data => {
         const list = data.projects ?? data ?? [];
         if (Array.isArray(list)) {
-          setContracts(list.map(c => ({
+          // Strictly show ONLY contracts where current user is either client OR freelancer
+          const myProjects = list.filter(
+            c => c.clientPubkey === myPubkey || c.freelancerPubkey === myPubkey ||
+                 c.clientPubkey === user?.walletAddress || c.freelancerPubkey === user?.walletAddress
+          );
+
+          setContracts(myProjects.map(c => ({
             id: c.projectId,
             title: c.title,
             description: c.description,
@@ -38,7 +56,7 @@ export default function Contracts() {
       })
       .catch(() => setContracts([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [publicKey, user?.walletAddress, user?.id]);
 
   const totalValue = contracts.reduce((sum, c) => sum + (c.amount || 0), 0);
 

@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { UploadCloud, File, CheckCircle, X, Link, Hash } from "lucide-react";
+import { UploadCloud, File, CheckCircle, X, Link, Hash, ArrowRight, MessageSquare } from "lucide-react";
 import { uploadFiles } from "../services/ipfs";
 import { getContracts, submitWork } from "../services/api";
 import { useAuth } from "../hooks/useAuth";
 import { useWallet } from "../hooks/useWallet";
 
 export default function SubmitWork() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { shortAddress } = useWallet();
   const [contracts, setContracts] = useState([]);
@@ -18,21 +20,41 @@ export default function SubmitWork() {
   const [uploaded, setUploaded] = useState(null);
   const fileRef = useRef();
 
-  // Load real contracts from backend
+  // Load real contracts assigned to this freelancer
   useEffect(() => {
     const token = sessionStorage.getItem("ps_token");
-    getContracts({}, token)
+    const myPubkey = user?.walletAddress || user?.id || (shortAddress ? shortAddress : null);
+    if (!myPubkey && !token) {
+      setContracts([]);
+      return;
+    }
+
+    getContracts({ freelancerPubkey: myPubkey }, token)
       .then((data) => {
         const list = data.projects ?? data ?? [];
         if (Array.isArray(list)) {
-          setContracts(list);
-          if (list.length > 0) {
-            setSelectedContract(list[0].projectId || list[0]._id);
+          // Strictly show ONLY contracts where this freelancer is hired AND status is active (in_progress or submitted)
+          const activeAssigned = list.filter((c) => {
+            const isAssignedToMe =
+              c.freelancerPubkey === myPubkey ||
+              c.freelancerPubkey === user?.walletAddress ||
+              c.freelancerPubkey === user?.id;
+            const isActiveStatus = c.status === "in_progress" || c.status === "submitted";
+            return isAssignedToMe && isActiveStatus;
+          });
+          setContracts(activeAssigned);
+          if (activeAssigned.length > 0) {
+            setSelectedContract(activeAssigned[0].projectId || activeAssigned[0]._id);
+          } else {
+            setSelectedContract("");
           }
         }
       })
-      .catch((err) => console.error("Failed to load contracts for submission:", err));
-  }, [user?.walletAddress]);
+      .catch((err) => {
+        console.error("Failed to load contracts for submission:", err);
+        setContracts([]);
+      });
+  }, [user?.walletAddress, user?.id, shortAddress]);
 
   const handleFiles = (fileList) => {
     const arr = Array.from(fileList).map((f) => ({
@@ -70,7 +92,7 @@ export default function SubmitWork() {
       }
 
       if (!ipfsHash) {
-        ipfsHash = `bafybei${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+        throw new Error("IPFS upload failed — could not obtain a content hash for your files. Please check your Pinata API key or try again.");
       }
 
       // 2. Record submission in backend
@@ -184,17 +206,40 @@ export default function SubmitWork() {
                 </div>
               </div>
 
-              <button
-                id="btn-submit-another"
-                className="btn btn-secondary"
-                onClick={() => {
-                  setUploaded(null);
-                  setFiles([]);
-                  setNote("");
-                }}
-              >
-                Submit Another Deliverable
-              </button>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+                <button
+                  id="btn-view-contract-after-submit"
+                  className="btn btn-primary"
+                  onClick={() => navigate(`/contract/${selectedContract}`)}
+                  style={{ display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  View Contract Status <ArrowRight size={14} />
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => navigate("/freelancer/contracts")}
+                >
+                  My Active Contracts
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => navigate("/chat")}
+                  style={{ display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <MessageSquare size={14} /> Message Client
+                </button>
+                <button
+                  id="btn-submit-another"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setUploaded(null);
+                    setFiles([]);
+                    setNote("");
+                  }}
+                >
+                  Submit Another Deliverable
+                </button>
+              </div>
             </div>
           ) : (
             /* ── Upload Form ── */
@@ -203,8 +248,20 @@ export default function SubmitWork() {
               <div className="card mb-6 animate-fadeInUp">
                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 18 }}>Select Contract</h2>
                 {contracts.length === 0 ? (
-                  <div style={{ padding: "16px 0", color: "var(--text-muted)", fontSize: 14 }}>
-                    No contracts available. Wait for a client to accept your proposal or post a contract.
+                  <div style={{ padding: "28px 20px", textAlign: "center" }}>
+                    <div style={{ fontSize: 32, marginBottom: 10 }}>📁</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, color: "var(--text-primary)" }}>
+                      No Active Contracts Assigned
+                    </div>
+                    <p style={{ color: "var(--text-secondary)", fontSize: 13, maxWidth: 440, margin: "0 auto 18px", lineHeight: 1.6 }}>
+                      You don't have any active in-progress contracts yet. When a client accepts your proposal and deposits escrow, your project will appear here to upload deliverables.
+                    </p>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => navigate("/freelancer/jobs")}
+                    >
+                      Browse Open Jobs <ArrowRight size={13} style={{ marginLeft: 4 }} />
+                    </button>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

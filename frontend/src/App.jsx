@@ -7,10 +7,13 @@ import { CustomWalletProvider } from "./context/WalletContext";
 // Public
 import LandingPage from "./pages/LandingPage";
 
-// Auth
+// Auth & Onboarding
 import Login from "./pages/Login";
 import RoleSelection from "./pages/auth/RoleSelection";
 import Signup from "./pages/auth/Signup";
+import OnboardingRole from "./pages/onboarding/OnboardingRole";
+import FreelancerOnboarding from "./pages/onboarding/FreelancerOnboarding";
+import ClientOnboarding from "./pages/onboarding/ClientOnboarding";
 
 // Freelancer pages
 import FreelancerDashboard from "./pages/freelancer/FreelancerDashboard";
@@ -21,6 +24,7 @@ import ActiveContracts from "./pages/freelancer/ActiveContracts";
 import FreelancerPayments from "./pages/freelancer/FreelancerPayments";
 import FreelancerProfile from "./pages/freelancer/FreelancerProfile";
 import EditFreelancerProfile from "./pages/freelancer/EditFreelancerProfile";
+import FreelancerReviews from "./pages/freelancer/FreelancerReviews";
 
 // Client pages
 import ClientDashboard from "./pages/client/ClientDashboard";
@@ -77,20 +81,29 @@ function App() {
             <Route path="/security" element={<SecurityPage />} />
             <Route path="/contact" element={<ContactPage />} />
 
-            {/* ── Auth ───────────────────────────────────── */}
+            {/* ── Auth & Onboarding ────────────────────────── */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/role" element={<RoleSelection />} />
+            <Route path="/role" element={<OnboardingRole />} />
+            <Route path="/onboarding/role" element={<OnboardingRole />} />
+            <Route path="/onboarding/freelancer" element={<FreelancerOnboarding />} />
+            <Route path="/onboarding/client" element={<ClientOnboarding />} />
+            <Route path="/dashboard/freelancer" element={<Navigate to="/freelancer/dashboard" replace />} />
+            <Route path="/dashboard/client" element={<Navigate to="/client/dashboard" replace />} />
 
             {/* ── Freelancer Portal ──────────────────────── */}
             <Route path="/freelancer/dashboard" element={<FreelancerDashboard />} />
             <Route path="/freelancer/jobs" element={<RecommendedJobs />} />
             <Route path="/freelancer/job/:id" element={<JobDetails />} />
+            <Route path="/job/:id" element={<JobDetails />} />
             <Route path="/freelancer/apply/:id" element={<ApplyJob />} />
+            <Route path="/apply/:id" element={<ApplyJob />} />
             <Route path="/freelancer/contracts" element={<ActiveContracts />} />
             <Route path="/freelancer/payments" element={<FreelancerPayments />} />
             <Route path="/freelancer/profile" element={<FreelancerProfile />} />
             <Route path="/freelancer/edit-profile" element={<EditFreelancerProfile />} />
+            <Route path="/freelancer/reviews" element={<FreelancerReviews />} />
+            <Route path="/reviews" element={<FreelancerReviews />} />
 
             {/* ── Client Portal ──────────────────────────── */}
             <Route path="/client/dashboard" element={<ClientDashboard />} />
@@ -109,6 +122,7 @@ function App() {
             <Route path="/contracts" element={<Contracts />} />
             <Route path="/contract/:id" element={<ContractDetails />} />
             <Route path="/submit" element={<SubmitWork />} />
+            <Route path="/submit-work" element={<SubmitWork />} />
             <Route path="/approve" element={<PaymentApproval />} />
             <Route path="/dispute" element={<DisputeCenter />} />
 
